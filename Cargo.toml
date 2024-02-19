@@ -1,0 +1,13 @@
+[workspace]
+members = ["example_cube", "example_fish"]
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
