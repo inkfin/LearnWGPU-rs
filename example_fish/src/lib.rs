@@ -2,6 +2,9 @@ mod camera;
 mod model;
 mod resources;
 mod texture;
+mod timer;
+
+use std::time::Instant;
 
 use cgmath::prelude::*;
 use tracing::{error, info, warn};
@@ -17,6 +20,8 @@ use winit::{
 use camera::{Camera, CameraController};
 
 use model::{Model, Vertex};
+
+use crate::timer::Timer;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -247,7 +252,7 @@ impl State {
             zfar: 100.0,
         };
 
-        let camera_controller = CameraController::new(0.2);
+        let camera_controller = CameraController::new(2.0);
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
@@ -289,7 +294,7 @@ impl State {
         // init shader
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../shader/shader.wgsl").into()),
         });
 
         // or use this macro:
@@ -434,8 +439,8 @@ impl State {
         event_handled
     }
 
-    fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
+    fn update(&mut self, delta_time: f32) {
+        self.camera_controller.update_camera(&mut self.camera, delta_time);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
@@ -543,6 +548,9 @@ pub async fn run() {
 
     let mut state = State::new(window).await;
 
+    // Initialize last frame timer
+    let mut timer = Timer::new();
+
     event_loop.run(
         move |event, _, control_flow: &mut ControlFlow| match event {
             Event::WindowEvent {
@@ -573,7 +581,9 @@ pub async fn run() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
-                state.update();
+                // Get current time on frame start
+                timer.render_timer = Instant::now();
+
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
@@ -583,8 +593,18 @@ pub async fn run() {
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
                     Err(e) => eprintln!("{:?}", e),
                 }
+
+                timer.get_and_update_render_time();
             }
             Event::MainEventsCleared => {
+                let dt = timer.get_and_update_all_events_time();
+
+                timer.state_timer = Instant::now();
+
+                state.update(dt.as_secs_f32());
+
+                timer.get_and_update_state_time();
+
                 // RedrawRequested will only trigger once unless we manually
                 // request it.
                 state.window().request_redraw();
