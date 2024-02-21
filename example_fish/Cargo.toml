@@ -15,8 +15,25 @@ pollster = "0.3"
 log = "0.4"
 tracing = "0.1.36"
 tracing-subscriber = { version = "0.3.15", features = ["time"] }
+instant = "0.1"
+
+## GUI ##
+
+# 1st way
+# egui = "0.24.1"
+# egui-winit = "0.24.1"
+# egui-wgpu = "0.24.1"
+# wgpu = "0.18"
+# winit = "0.28"
+
+# 2nd way: only support wgpu 0.18 + winit 0.28
+egui = "0.23"
+egui_demo_lib = "0.23"
+egui_wgpu_backend = "0.27"
+egui_winit_platform = "0.20"
 wgpu = "0.18"
 winit = "0.28"
+
 bytemuck = { version = "1.12", features = ["derive"] }
 image = { version = "0.24.7", default-features = false, features = [
     "png",
@@ -30,7 +47,8 @@ tobj = { version = "3.2.1", features = ["async"] }
 console_error_panic_hook = "0.1.6"
 console_log = "0.2.0"
 tracing-wasm = "0.2.1"
-wgpu = { version = "0.18", features = ["webgl"] }
+wgpu = { version = "0.18.0" }
+# wgpu = { version = "0.18.0", features = ["webgl"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [

@@ -1,16 +1,25 @@
 mod camera;
+mod gui;
 mod model;
 mod resources;
 mod texture;
 mod timer;
 
-use std::time::Instant;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use gui::UIState;
+use instant::Instant;
 
 use cgmath::prelude::*;
 use tracing::{error, info, warn};
 #[cfg(target_arch = "wasm32")]
+use wasm_bindgen::closure;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
+use winit::dpi::LogicalSize;
+use winit::dpi::PhysicalSize;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -22,6 +31,12 @@ use camera::{Camera, CameraController};
 use model::{Model, Vertex};
 
 use crate::timer::Timer;
+
+use core::ops::Range;
+
+// TODO: Add texture range check
+const TEXTURE_RANGE_WIDTH: Range<u32> = 450..1920;
+const TEXTURE_RANGE_HEIGHT: Range<u32> = 400..1080;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -48,10 +63,11 @@ struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
+    scale_factor: f64,
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
-    window: Window,
+    window: Rc<Window>,
     clear_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
     camera: Camera,
@@ -63,6 +79,7 @@ struct State {
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     obj_model: Model,
+    ui_state: UIState,
 }
 
 impl CameraUniform {
@@ -128,8 +145,14 @@ impl InstanceRaw {
 
 impl State {
     // Creating some of the wgpu types requires async code
-    async fn new(window: Window) -> Self {
+    async fn new(window: Rc<Window>) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        let size = PhysicalSize::new(TEXTURE_RANGE_WIDTH.end, TEXTURE_RANGE_HEIGHT.end);
+        // let size = get_window_size().to_physical(1.0);
+        #[cfg(not(target_arch = "wasm32"))]
         let size = window.inner_size();
+
+        let scale_factor = window.scale_factor();
 
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
@@ -142,8 +165,20 @@ impl State {
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window, so this should be safe.
-        let surface = unsafe { instance.create_surface(&window) }.unwrap();
+        let surface = unsafe { instance.create_surface(window.as_ref()) }.unwrap();
 
+        // Disable this because the unstable api is different
+        #[cfg(target_arch = "wasm32")]
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::default(),
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .unwrap();
+
+        #[cfg(not(target_arch = "wasm32"))]
         let adapter = match instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -182,7 +217,8 @@ impl State {
             .unwrap();
 
         // Get features
-        dbg!(adapter.features());
+        info!("{:?}", adapter.features());
+        info!("{:?}", adapter.limits());
 
         let surface_caps = surface.get_capabilities(&adapter);
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different
@@ -197,8 +233,8 @@ impl State {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width,
-            height: size.height,
+            width: size.width as u32,
+            height: size.height as u32,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
@@ -232,6 +268,8 @@ impl State {
 
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+
+        let ui_state = UIState::new(&device, &surface_format, size, scale_factor);
 
         let obj_model =
             resources::load_model("Amago0.obj", &device, &queue, &texture_bind_group_layout)
@@ -294,7 +332,7 @@ impl State {
         // init shader
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shader/shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
         // or use this macro:
@@ -387,6 +425,7 @@ impl State {
             queue,
             config,
             size,
+            scale_factor,
             clear_color: wgpu::Color {
                 r: 0.3,
                 g: 0.2,
@@ -403,6 +442,7 @@ impl State {
             instances,
             instance_buffer,
             obj_model,
+            ui_state,
         }
     }
 
@@ -410,16 +450,40 @@ impl State {
         &self.window
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
+    fn resize(&mut self, new_size: PhysicalSize<u32>, new_scale_factor: Option<f64>) {
+        #[cfg(target_arch = "wasm32")]
+        return;
 
-            self.depth_texture =
-                texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+        // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+        // See: https://github.com/rust-windowing/winit/issues/208
+        // This solves an issue where the app would panic when minimizing on Windows.
+        if new_size.width <= 0 || new_size.height <= 0 {
+            return;
         }
+
+        // if !TEXTURE_RANGE_WIDTH.contains(&new_size.width)
+        //     || !TEXTURE_RANGE_HEIGHT.contains(&new_size.height)
+        // {
+        //     warn!["illigal texture size {:?}", new_size];
+        //     return;
+        // }
+
+        self.size.width = new_size.width;
+        self.size.height = new_size.height;
+
+        if let Some(value) = new_scale_factor {
+            self.scale_factor = value;
+        }
+
+        // dbg!("resizing!!! {}, {}", self.size.width, self.size.height);
+        self.config.width = self.size.width;
+        self.config.height = self.size.height;
+        self.surface.configure(&self.device, &self.config);
+
+        self.depth_texture =
+            texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+
+        self.ui_state.resize(new_size, new_scale_factor);
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -440,7 +504,8 @@ impl State {
     }
 
     fn update(&mut self, delta_time: f32) {
-        self.camera_controller.update_camera(&mut self.camera, delta_time);
+        self.camera_controller
+            .update_camera(&mut self.camera, delta_time);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
@@ -498,8 +563,13 @@ impl State {
             );
         }
 
+        // draw GUI
+        let ui_command_buffer =
+            self.ui_state
+                .render(&self.device, &self.queue, &self.window, &view);
+
         // submit will accept anything that implements IntoIter
-        self.queue.submit(std::iter::once(encoder.finish()));
+        self.queue.submit(vec![encoder.finish(), ui_command_buffer]);
         output.present();
 
         Ok(())
@@ -527,32 +597,80 @@ pub async fn run() {
         .build(&event_loop)
         .unwrap();
 
+    let window = Rc::new(window);
+
+    // Attach canvas
     #[cfg(target_arch = "wasm32")]
     {
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        use winit::dpi::PhysicalSize;
-        window.set_inner_size(PhysicalSize::new(450, 400));
-
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
             .and_then(|win| win.document())
             .and_then(|doc| {
                 let dst = doc.get_element_by_id("wasm-example")?;
-                let canvas = web_sys::Element::from(window.canvas());
+                let canvas = web_sys::Element::from(window.clone().canvas());
                 dst.append_child(&canvas).ok()?;
                 Some(())
             })
             .expect("Couldn't append canvas to document body.");
     }
 
-    let mut state = State::new(window).await;
-
     // Initialize last frame timer
     let mut timer = Timer::new();
 
-    event_loop.run(
-        move |event, _, control_flow: &mut ControlFlow| match event {
+    // Need to be created after canvas is attached
+    let mut state = State::new(window.clone()).await;
+    // Register callbacks
+    // These are buggy shift
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Winit prevents sizing with CSS, so we have to set
+        // the size manually when on web.
+        // use winit::dpi::PhysicalSize;
+        window.set_inner_size(PhysicalSize::new(
+            TEXTURE_RANGE_WIDTH.end,
+            TEXTURE_RANGE_HEIGHT.end,
+        ));
+
+        // referenced from https://github.com/michaelkirk/abstreet/blob/7b99335cd5325d455140c7595bf0ef3ccdaf93e0/widgetry/src/backend_glow_wasm.rs
+        /* let get_full_size = || {
+            let scrollbars = 30.0;
+            let win = web_sys::window().unwrap();
+            // `inner_width` corresponds to the browser's `self.innerWidth` function, which are in
+            // Logical, not Physical, pixels
+            winit::dpi::LogicalSize::new(
+                win.inner_width().unwrap().as_f64().unwrap() - scrollbars,
+                win.inner_height().unwrap().as_f64().unwrap() - scrollbars,
+            )
+        };*/
+
+        // window.set_inner_size(get_window_size());
+
+        // let window_rc = window.clone();
+        // let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |e: web_sys::Event| {
+        //     let size = get_window_size();
+        //     window_rc.set_inner_size(size);
+        // }) as Box<dyn FnMut(_)>);
+
+        // web_sys::window()
+        //     .and_then(|win| {
+        //         win.add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
+        //             .unwrap();
+        //         Some(())
+        //     })
+        //     .expect("Couldn't register resize to canvas.");
+
+        // closure.forget();
+    }
+
+    event_loop.run(move |event, _, control_flow: &mut ControlFlow| {
+        *control_flow = ControlFlow::Poll;
+
+        state.ui_state.egui_platform.handle_event(&event);
+        if state.ui_state.egui_platform.captures_event(&event) {
+            return;
+        }
+
+        match event {
             Event::WindowEvent {
                 ref event,
                 window_id,
@@ -570,11 +688,14 @@ pub async fn run() {
                             ..
                         } => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
+                            state.resize(*physical_size, None);
                         }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                        WindowEvent::ScaleFactorChanged {
+                            scale_factor,
+                            new_inner_size,
+                        } => {
                             // new_inner_size is &&mut so we have to dereference it twice
-                            state.resize(**new_inner_size);
+                            state.resize(**new_inner_size, Some(*scale_factor));
                         }
                         _ => {}
                     }
@@ -587,7 +708,7 @@ pub async fn run() {
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
-                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size, None),
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
@@ -610,6 +731,29 @@ pub async fn run() {
                 state.window().request_redraw();
             }
             _ => {}
-        },
+        }
+    });
+}
+
+/// Texture size has limitations, so clamp it
+fn clamp_window_size(size: LogicalSize<u32>) -> LogicalSize<u32> {
+    winit::dpi::LogicalSize::new(
+        size.width
+            .clamp(TEXTURE_RANGE_WIDTH.start, TEXTURE_RANGE_WIDTH.end),
+        size.height
+            .clamp(TEXTURE_RANGE_HEIGHT.start, TEXTURE_RANGE_HEIGHT.end),
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_window_size() -> LogicalSize<u32> {
+    let scrollbars = 30;
+    let win = web_sys::window().unwrap();
+    // `inner_width` corresponds to the browser's `self.innerWidth` function, which are in
+    // Logical, not Physical, pixels
+    let window_size = winit::dpi::LogicalSize::new(
+        win.inner_width().unwrap().as_f64().unwrap() as u32 - scrollbars,
+        win.inner_height().unwrap().as_f64().unwrap() as u32 - scrollbars,
     );
+    clamp_window_size(window_size)
 }

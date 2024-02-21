@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
+// use std::time::{Duration, Instant}; // this will panic on WASM
+use instant::{Duration, Instant};
 
 use tracing::{error, info, warn};
 
@@ -35,7 +36,7 @@ impl Timer {
 
     pub fn get_and_update_render_time(&mut self) -> Duration {
         let elapse = self.render_timer.elapsed();
-        info!("Render delta time: {:?}", elapse);
+        // info!("Render delta time: {:?}", elapse);
 
         // update time vec
         if self.time_vec_render.len() as i32 >= self.time_vec_max_size {
@@ -48,7 +49,7 @@ impl Timer {
 
     pub fn get_and_update_state_time(&mut self) -> Duration {
         let elapse = self.state_timer.elapsed();
-        info!("State delta time: {:?}", elapse);
+        // info!("State delta time: {:?}", elapse);
 
         // update time vec
         if self.time_vec_state.len() as i32 >= self.time_vec_max_size {
@@ -61,7 +62,7 @@ impl Timer {
 
     pub fn get_and_update_all_events_time(&mut self) -> Duration {
         let all_events_time = self.get_all_events_time();
-        info!("All events delta time: {:?}", all_events_time);
+        // info!("All events delta time: {:?}", all_events_time);
         self.all_events_timer = Instant::now();
 
         // update time vec
