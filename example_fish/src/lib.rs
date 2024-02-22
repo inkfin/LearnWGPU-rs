@@ -5,38 +5,28 @@ mod resources;
 mod texture;
 mod timer;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use gui::UIState;
 use instant::Instant;
+use camera::{Camera, CameraController};
+use model::{Model, Vertex};
+use timer::Timer;
 
 use cgmath::prelude::*;
 use tracing::{error, info, warn};
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::closure;
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
 use wgpu::util::DeviceExt;
-use winit::dpi::LogicalSize;
-use winit::dpi::PhysicalSize;
 use winit::{
+    dpi::PhysicalSize,
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
 
-use camera::{Camera, CameraController};
-
-use model::{Model, Vertex};
-
-use crate::timer::Timer;
-
-use core::ops::Range;
-
-// TODO: Add texture range check
-const TEXTURE_RANGE_WIDTH: Range<u32> = 450..1920;
-const TEXTURE_RANGE_HEIGHT: Range<u32> = 400..1080;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -146,10 +136,6 @@ impl InstanceRaw {
 impl State {
     // Creating some of the wgpu types requires async code
     async fn new(window: Rc<Window>) -> Self {
-        #[cfg(target_arch = "wasm32")]
-        let size = PhysicalSize::new(TEXTURE_RANGE_WIDTH.end, TEXTURE_RANGE_HEIGHT.end);
-        // let size = get_window_size().to_physical(1.0);
-        #[cfg(not(target_arch = "wasm32"))]
         let size = window.inner_size();
 
         let scale_factor = window.scale_factor();
@@ -451,9 +437,6 @@ impl State {
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>, new_scale_factor: Option<f64>) {
-        #[cfg(target_arch = "wasm32")]
-        return;
-
         // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where the app would panic when minimizing on Windows.
@@ -461,12 +444,10 @@ impl State {
             return;
         }
 
-        // if !TEXTURE_RANGE_WIDTH.contains(&new_size.width)
-        //     || !TEXTURE_RANGE_HEIGHT.contains(&new_size.height)
-        // {
-        //     warn!["illigal texture size {:?}", new_size];
-        //     return;
-        // }
+        // info!(
+        //     "resizing to [{},{}]x{:?}",
+        //     new_size.width, new_size.height, new_scale_factor
+        // );
 
         self.size.width = new_size.width;
         self.size.height = new_size.height;
@@ -475,9 +456,9 @@ impl State {
             self.scale_factor = value;
         }
 
-        // dbg!("resizing!!! {}, {}", self.size.width, self.size.height);
         self.config.width = self.size.width;
         self.config.height = self.size.height;
+        self.camera.aspect = self.size.width as f32 / self.size.height as f32;
         self.surface.configure(&self.device, &self.config);
 
         self.depth_texture =
@@ -626,40 +607,38 @@ pub async fn run() {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         // use winit::dpi::PhysicalSize;
-        window.set_inner_size(PhysicalSize::new(
-            TEXTURE_RANGE_WIDTH.end,
-            TEXTURE_RANGE_HEIGHT.end,
-        ));
+        // window.set_inner_size(PhysicalSize::new(450, 400));
 
         // referenced from https://github.com/michaelkirk/abstreet/blob/7b99335cd5325d455140c7595bf0ef3ccdaf93e0/widgetry/src/backend_glow_wasm.rs
-        /* let get_full_size = || {
-            let scrollbars = 30.0;
+        // You need to pass an actual closure to javascript
+        let get_full_size = || {
+            let scrollbars = 0.0;
             let win = web_sys::window().unwrap();
-            // `inner_width` corresponds to the browser's `self.innerWidth` function, which are in
-            // Logical, not Physical, pixels
+            // `inner_width` corresponds to the browser's `self.innerwidth` function, which are in
+            // logical, not physical, pixels
             winit::dpi::LogicalSize::new(
                 win.inner_width().unwrap().as_f64().unwrap() - scrollbars,
                 win.inner_height().unwrap().as_f64().unwrap() - scrollbars,
             )
-        };*/
+        };
 
-        // window.set_inner_size(get_window_size());
+        window.set_inner_size(get_full_size());
 
-        // let window_rc = window.clone();
-        // let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |e: web_sys::Event| {
-        //     let size = get_window_size();
-        //     window_rc.set_inner_size(size);
-        // }) as Box<dyn FnMut(_)>);
+        let window_rc = window.clone();
+        let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::Event| {
+            let size = get_full_size();
+            window_rc.set_inner_size(size);
+        }) as Box<dyn FnMut(_)>);
 
-        // web_sys::window()
-        //     .and_then(|win| {
-        //         win.add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
-        //             .unwrap();
-        //         Some(())
-        //     })
-        //     .expect("Couldn't register resize to canvas.");
+        web_sys::window()
+            .and_then(|win| {
+                win.add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
+                    .unwrap();
+                Some(())
+            })
+            .expect("Couldn't register resize to canvas.");
 
-        // closure.forget();
+        closure.forget();
     }
 
     event_loop.run(move |event, _, control_flow: &mut ControlFlow| {
@@ -733,27 +712,4 @@ pub async fn run() {
             _ => {}
         }
     });
-}
-
-/// Texture size has limitations, so clamp it
-fn clamp_window_size(size: LogicalSize<u32>) -> LogicalSize<u32> {
-    winit::dpi::LogicalSize::new(
-        size.width
-            .clamp(TEXTURE_RANGE_WIDTH.start, TEXTURE_RANGE_WIDTH.end),
-        size.height
-            .clamp(TEXTURE_RANGE_HEIGHT.start, TEXTURE_RANGE_HEIGHT.end),
-    )
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_window_size() -> LogicalSize<u32> {
-    let scrollbars = 30;
-    let win = web_sys::window().unwrap();
-    // `inner_width` corresponds to the browser's `self.innerWidth` function, which are in
-    // Logical, not Physical, pixels
-    let window_size = winit::dpi::LogicalSize::new(
-        win.inner_width().unwrap().as_f64().unwrap() as u32 - scrollbars,
-        win.inner_height().unwrap().as_f64().unwrap() as u32 - scrollbars,
-    );
-    clamp_window_size(window_size)
 }

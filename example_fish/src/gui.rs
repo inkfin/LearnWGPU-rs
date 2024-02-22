@@ -41,15 +41,6 @@ impl UIState {
         if let Some(sf) = scale_factor {
             self.scale_factor = sf;
         }
-
-        // // update platform
-        // self.egui_platform = Platform::new(PlatformDescriptor {
-        //     physical_width: self.size.width,
-        //     physical_height: self.size.height,
-        //     scale_factor: self.scale_factor,
-        //     font_definitions: egui::FontDefinitions::default(),
-        //     style: Default::default(),
-        // });
     }
 
     pub fn render(
