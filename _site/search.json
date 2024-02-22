@@ -17,12 +17,13 @@
     ]
   },
   {
-    "objectID": "introduction.html#hello",
-    "href": "introduction.html#hello",
+    "objectID": "slides/introduction.html#hello",
+    "href": "slides/introduction.html#hello",
     "title": "Introduction to WGPU",
     "section": "Hello",
     "text": "Hello\n\nHello world!",
     "crumbs": [
+      "Slides",
       "Introduction to WGPU"
     ]
   }
