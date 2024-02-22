@@ -1,0 +1,26 @@
+project:
+  type: website
+
+website:
+  title: "Learn WGPU-rs"
+  sidebar:
+    style: "docked"
+    search: true
+    tools:
+      - icon: github
+        url: https://github.com
+    contents:
+      - href: index.qmd
+        text: Home
+      - section: "Slides"
+        contents: slides/*
+      # - about.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+
+

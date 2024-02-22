@@ -1,0 +1,29 @@
+[
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Home",
+    "section": "",
+    "text": "This is the home directory of 521-rs project.",
+    "crumbs": [
+      "Home"
+    ]
+  },
+  {
+    "objectID": "introduction.html#hello",
+    "href": "introduction.html#hello",
+    "title": "Introduction to WGPU",
+    "section": "Hello",
+    "text": "Hello\n\nHello world!",
+    "crumbs": [
+      "Introduction to WGPU"
+    ]
+  }
+]
