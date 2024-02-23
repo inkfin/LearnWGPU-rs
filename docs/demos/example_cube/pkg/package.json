@@ -1,0 +1,14 @@
+{
+  "name": "example_cube",
+  "version": "0.1.0",
+  "files": [
+    "example_cube_bg.wasm",
+    "example_cube.js",
+    "example_cube.d.ts"
+  ],
+  "module": "example_cube.js",
+  "types": "example_cube.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

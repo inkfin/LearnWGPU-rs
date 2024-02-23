@@ -1,0 +1,27 @@
+---
+title: "Example fish"
+format:
+  html:
+    minimal: true
+    css: styles.css
+    include-in-header:
+      text: |
+        <script type="module">
+          import init from "./pkg/example_fish.js";
+          init().catch((error) => {
+          if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
+              throw error;
+          }
+          }).then(() => {
+          console.log("WASM Loaded");
+          });
+        </script>
+    include-before-body:
+      text: |
+        <div id="wasm-example"></div>
+resources:
+  - "pkg"
+  - "../../assets/Amago0.obj"
+  - "../../assets/Amago0.obj.mtl"
+  - "../../assets/AmagoT.jpg"
+---

@@ -1,10 +1,14 @@
 [
   {
-    "objectID": "about.html",
-    "href": "about.html",
-    "title": "About",
-    "section": "",
-    "text": "About this site"
+    "objectID": "slides/introduction.html#what-is-webgpu",
+    "href": "slides/introduction.html#what-is-webgpu",
+    "title": "Introduction to WGPU",
+    "section": "What is WebGPU?",
+    "text": "What is WebGPU?\n\nWebGPU is the next generation of WebGL",
+    "crumbs": [
+      "Slides",
+      "Introduction to WGPU"
+    ]
   },
   {
     "objectID": "index.html",
@@ -17,14 +21,10 @@
     ]
   },
   {
-    "objectID": "slides/introduction.html#hello",
-    "href": "slides/introduction.html#hello",
-    "title": "Introduction to WGPU",
-    "section": "Hello",
-    "text": "Hello\n\nHello world!",
-    "crumbs": [
-      "Slides",
-      "Introduction to WGPU"
-    ]
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site"
   }
 ]

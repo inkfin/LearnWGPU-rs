@@ -6,6 +6,7 @@ format:
     theme: blood
 ---
 
-## Hello
+## What is WebGPU?
 
-- Hello world!
+- WebGPU is the next generation of WebGL
+

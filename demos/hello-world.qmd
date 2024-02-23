@@ -1,0 +1,15 @@
+---
+title: "Hello world"
+format:
+  html:
+    minimal: true
+    css: styles.css
+    include-in-header:
+      text: |
+        <script>
+          console.log("Hello, world!");
+        </script>
+    include-before-body: 
+      text: |
+        <h1>Hello, world!</h1>
+---

@@ -1,0 +1,14 @@
+{
+  "name": "example_fish",
+  "version": "0.1.0",
+  "files": [
+    "example_fish_bg.wasm",
+    "example_fish.js",
+    "example_fish.d.ts"
+  ],
+  "module": "example_fish.js",
+  "types": "example_fish.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -15,6 +15,10 @@ website:
         text: Home
       - section: "Slides"
         contents: slides/*
+      - section: "Demos"
+        contents:
+          - demos/example_cube/index.qmd
+          - demos/example_fish/index.qmd
       # - about.qmd
 
 format:
