@@ -4,12 +4,13 @@ project:
 
 website:
   title: "Learn WGPU-rs"
+  site-url: https://github.com/inkfin/LearnWGPU-rs
   sidebar:
     style: "docked"
     search: true
     tools:
       - icon: github
-        url: https://github.com
+        url: https://github.com/inkfin/LearnWGPU-rs
     contents:
       - href: index.qmd
         text: Home
