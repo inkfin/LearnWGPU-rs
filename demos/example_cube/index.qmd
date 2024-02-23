@@ -21,8 +21,5 @@ format:
         <div id="wasm-example"></div>
 resources:
   - "pkg"
-  - "../../assets/cube.obj"
-  - "../../assets/cube.mtl"
-  - "../../assets/cube-diffuse.jpg"
-  - "../../assets/cube-normal.png"
+  - "assets"
 ---

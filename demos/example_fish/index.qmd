@@ -21,7 +21,5 @@ format:
         <div id="wasm-example"></div>
 resources:
   - "pkg"
-  - "../../assets/Amago0.obj"
-  - "../../assets/Amago0.obj.mtl"
-  - "../../assets/AmagoT.jpg"
+  - "assets"
 ---
