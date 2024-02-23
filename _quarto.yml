@@ -4,7 +4,8 @@ project:
 
 website:
   title: "Learn WGPU-rs"
-  site-url: https://github.com/inkfin/LearnWGPU-rs
+  site-path: "/LearnWGPU-rs/"
+  site-url: "https://inkfin.github.io/LearnWGPU-rs"
   sidebar:
     style: "docked"
     search: true

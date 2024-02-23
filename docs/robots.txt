@@ -1,1 +1,1 @@
-Sitemap: https://github.com/inkfin/LearnWGPU-rs/sitemap.xml
+Sitemap: https://inkfin.github.io/LearnWGPU-rs/sitemap.xml
