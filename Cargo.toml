@@ -1,5 +1,6 @@
 [workspace]
-members = ["example_cube", "example_fish"]
+members = ["example_cube", "example_fish", "hello_compute"]
+resolver = "2"
 
 [profile.dev]
 opt-level = 1

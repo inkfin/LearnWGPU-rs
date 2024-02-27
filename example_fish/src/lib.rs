@@ -191,7 +191,7 @@ impl State {
                     // we're building for the web, we'll have to disable some.
                     limits: if cfg!(target_arch = "wasm32") {
                         // TODO: remove this downlevel later
-                        wgpu::Limits::downlevel_webgl2_defaults()
+                        wgpu::Limits::default()
                     } else {
                         wgpu::Limits::default()
                     },
@@ -203,8 +203,8 @@ impl State {
             .unwrap();
 
         // Get features
-        info!("{:?}", adapter.features());
-        info!("{:?}", adapter.limits());
+        info!("adapter features: {:?}", adapter.features());
+        info!("device limits: {:?}", device.limits());
 
         let surface_caps = surface.get_capabilities(&adapter);
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different
