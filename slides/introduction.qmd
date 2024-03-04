@@ -1,12 +1,742 @@
 ---
-title: "Introduction to WGPU"
+title: "WGPU with Rust in 50min"
 author: "Ink Zhang"
 format:
-  revealjs: 
-    theme: blood
+  revealjs:
+    theme: beige
+    mermaid-format: svg
+    code-block-height: 650px
 ---
+
+# Basics
 
 ## What is WebGPU?
 
-- WebGPU is the next generation of WebGL
+- WebGPU is the next generation of WebGL and a cross-platform API.
+- Backends: browser `webgpu`, `vulkan`, `DX12`, `metal`...
+- Implementations
+  - [wgpu](https://github.com/gfx-rs/wgpu) for rust
+  - [wgpu-native](https://github.com/gfx-rs/wgpu-native) for c++
+  - [google dawn](https://dawn.googlesource.com/dawn) implementation in chromium
+
+::: {#fig layout-ncol=2}
+![wgpu github page](assets/wgpu-github-page.png){#fig-wgpu}
+
+![wgpu-native github page](assets/wgpu-native-github-page.png){#fig-wgpu-native}
+:::
+
+:::{.notes}
+- more universal
+- multiple backends, including Vulkan, webgpu
+:::
+
+## Meet Rust ![](https://www.rust-lang.org/static/images/rust-logo-blk.svg){width=10%}
+
+- Rust is a modern programming language that balances high-level ergonomics and low-level control. ^[The book: https://doc.rust-lang.org/book/]
+  1. memory safety
+  2. zero-cost abstraction
+  3. powerful toolsets
+
+## To get started
+
+- Install `rustup` ([Instructions](https://www.rust-lang.org/tools/install))
+
+```{.shell}
+rustc --version
+# will gives you something like: 
+#   rustc 1.75.0 (82e1608df 2023-12-21)
+```
+
+- Cargo is the rust's official package manager
+
+```{.shell}
+# cd into the project root directory
+cargo run --release
+```
+
+- Install `wasm-pack` ([Instructions](https://rustwasm.github.io/wasm-pack/installer/))
+```{.shell}
+wasm-pack build --target web
+```
+
+## Comparing to OpenGL & C++...
+
+::::{.columns}
+
+:::{.column}
+C++
+
+- more flexible with raw pointer
+- use a lot of **classes**, **interfaces**
+- the language of lots of game engines: **Source**, **Unreal Engine**
+- `glew` + `glfw` + `imgui`
+:::
+:::{.column}
+Rust
+
+- better error handle & easier async
+- no Class, use **struct** & **traits**
+- new experimental game engines under development: **Bevy**, **Fyrox**
+- `wgpu` + `winit` + `egui`
+:::
+
+::::
+
+## Hello world!
+
+First, create a rust project using `cargo`
+```{.shell}
+cargo new hello-world
+```
+
+Use your favorite editor and edit the `src/main.rs`:
+```{.rust}
+fn main() {
+    let name = "ink";
+    println!("Hello, world! from {:?}", name)
+}
+```
+
+To run the code:
+
+```{.shell}
+cargo run
+```
+
+The result should be:
+
+```{rust}
+let name = "ink";
+println!("Hello, world! from {:?}", name);
+```
+
+## Great! Now the wgpu examples
+
+- The example git repository: [link](https://github.com/inkfin/LearnWGPU-rs)
+```{.shell}
+# we do a shallow clone
+git clone https://github.com/inkfin/LearnWGPU-rs.git --depth=1 
+```
+
+See the README.md for build instructions, or you can find the pre-build examples in the [DEMO](https://inkfin.github.io/LearnWGPU-rs/) part on my GitHub page.
+
+::: aside
+The official repository example (some of v0.18 examples are broken with current API): [wgpu v0.18 examples](https://github.com/gfx-rs/wgpu/tree/v0.18/examples)
+:::
+
+
+## Take a sip of coffee..
+
+- Let's take a short break. Feel free to stretch, refill your coffee, and prepare for our next segment on integrating Rust with wgpu.
+
+- Have any questions so far?
+
+# Wgpu pipeline
+
+## What we have learned from 521 
+:::{.incremental}
+- Everything is in a giant state machine
+- `glCommand`s depend on context
+- Objects are generated and returned as IDs
+- Need to _bind_ objects to the current target before performing any actions
+- No abstraction for render passes and render pipeline
+  - Need developers to create their own pipeline by setting things in the context
+:::
+
+## Wgpu pipeline {.smaller}
+
+- Better abstractions (simillar to vulkan)
+
+```{mermaid}
+%%| fig-responsive: false
+%%| fig-height: 2
+flowchart LR
+  Instance & Surface --> Adapter
+  Adapter --> Device & Queue
+
+```
+
+::: {.incremental}
+- **Instance**: a handle to our GPU, first thing ever created ([`GPU`] in WebGPU)
+- **Surface**: a platform-specific surface (e.g., a window) onto which rendered images may be presented ([`GPUCanvasContext`] in WebGPU)
+  - _Careful: need to live as long as the window (canvas)_
+- **Adapter**: Handle to a physical graphics and/or compute device ([`GPUAdapter`] in WebGPU)
+:::
+
+## Cont. {.smaller}
+
+```{mermaid}
+%%| fig-responsive: false
+%%| fig-height: 2
+flowchart LR
+  Instance & Surface --> Adapter
+  Adapter --> Device & Queue
+
+```
+
+:::{.incremental}
+- **Device**: Open connection to a graphics and/or compute device. ([`GPUDevice`] in WebGPU)
+  - Responsible for the creation of most rendering and compute resources. These are then used in commands, which are submitted to a [`Queue`].
+- **Queue**: Handle to a command queue on a device ([`GPUQueue`] in WebGPU)
+  - executes recorded [`CommandBuffer`] objects and provides convenience methods for writing to [buffers](Queue::write_buffer) and [textures](Queue::write_texture).
+:::
+
+## The Structure of a RenderPass
+
+```{mermaid}
+flowchart TB
+
+  subgraph Bindgroups
+  BindGroup["Bindgroup 0
+  Bindgroup 1
+  Bindgroup 2
+  ..."]
+
+  Buffers --> BindGroupLayout & BindGroup
+  Texture --> BindGroupLayout & BindGroup
+
+  BindGroupLayout --> BindGroup
+  end
+
+  subgraph VertexState
+  VertexShader
+  VertexBufferLayout
+  end
+
+  subgraph FragmentState
+  FragmentShader
+  end
+
+  subgraph PipelineLayout
+  BindGroupLayouts["
+  UniformBindGroupLayout
+  TextureBindGroupLayout
+  StorageBindGroupLayout
+  ...
+  "]
+  RenderPipelineLayout
+  end
+
+  Buffers -->|set_vertex_buffer| RenderPass
+  BindGroup --> RenderPass
+
+  %% VertexBuffer & IndexBuffer --> RenderPass
+
+  BindGroupLayouts -.- BindGroupLayout
+
+  BindGroupLayouts --> RenderPipelineLayout
+  RenderPipelineLayout --> RenderPipeline
+
+  VertexState --> RenderPipeline
+  FragmentState --> RenderPipeline
+
+  RenderPipeline -->|set_pipeline| RenderPass
+```
+
+## RenderPass
+
+This is the vulkan || webgpu abstraction of rendering procedure.
+
+Encoder & Renderpass object will return a `CommandBuffer`, a complete sequence of commands that may be submitted to a command queue
+
+
+<!-- ```{mermaid}
+%%| fig-responsive: false
+%%| fig-height: 3
+classDiagram
+  class RenderPass
+  RenderPass: +RenderPassColorAttachment color_attachments
+  RenderPass: +RenderPassDepthStencilAttachment depth_stencil_attachment
+  RenderPass: +QueryPass occlusion_query_set
+  RenderPass: +RenderPassTimestampWrites timestamp_writes
+  RenderPass: +set_pipeline()
+  RenderPass: +set_vertex_buffer()
+  RenderPass: +set_index_buffer()
+  RenderPass: +set_bind_group()
+  RenderPass: +draw_indexed()
+``` -->
+
+- **BindGroups** (maps Buffers & Textures to bind points)
+- **VertexBufferLayout** (VertexAttributes)
+- **Shader**
+
+## RenderPass
+
+```rust
+let mut encoder = device.create_command_encoder(...);
+{
+  // force out of scope since render_pass can't live longer than encoder
+  let mut render_pass = encoder.begin_render_pass(
+    &wgpu::RenderPassDescriptor {
+      label: Some("Render Pass"),
+      color_attachments: ...,
+      depth_stencil_attachment: ...,
+      occlusion_query_set: None,
+      timestamp_writes: None,
+  });
+  render_pass.set_pipeline(...);
+  render_pass.set_vertex_buffer(...);
+  render_pass.set_index_buffer(...);
+  render_pass.set_bind_group(...);
+  render_pass.draw_indexed();
+}
+queue.submit(vec![encoder.finish()]);
+```
+
+::: aside
+source code: `example_cube/src/lib.rs:481`
+:::
+
+## RenderPass
+
+```{.rust code-line-numbers="3,4,16,18"}
+let mut encoder = device.create_command_encoder(...);
+{
+  // force out of scope since render_pass can't live longer than encoder
+  let mut render_pass = encoder.begin_render_pass(
+    &wgpu::RenderPassDescriptor {
+      label: Some("Render Pass"),
+      color_attachments: ...,
+      depth_stencil_attachment: ...,
+      occlusion_query_set: None,
+      timestamp_writes: None,
+  });
+  render_pass.set_pipeline(...);
+  render_pass.set_vertex_buffer(...);
+  render_pass.set_index_buffer(...);
+  render_pass.set_bind_group(...);
+  render_pass.draw_indexed();
+}
+queue.submit(vec![encoder.finish()]);
+```
+
+::: aside
+source code: `example_cube/src/lib.rs:481`
+:::
+
+## RenderPass
+
+```{.rust code-line-numbers="12-15"}
+let mut encoder = device.create_command_encoder(...);
+{
+  // force out of scope since render_pass can't live longer than encoder
+  let mut render_pass = encoder.begin_render_pass(
+    &wgpu::RenderPassDescriptor {
+      label: Some("Render Pass"),
+      color_attachments: ...,
+      depth_stencil_attachment: ...,
+      occlusion_query_set: None,
+      timestamp_writes: None,
+  });
+  render_pass.set_pipeline(...);
+  render_pass.set_vertex_buffer(...);
+  render_pass.set_index_buffer(...);
+  render_pass.set_bind_group(...);
+  render_pass.draw_indexed();
+}
+queue.submit(vec![encoder.finish()]);
+```
+
+::: aside
+source code: `example_cube/src/lib.rs:481`
+:::
+
+
+## RenderPipeline
+- The collection of resources and states.
+  1. Shader
+  2. Buffers (VertexBuffers, UniformBuffers)
+  3. primitive state
+  4. depth_stencil
+  5. other things we don't care about...
+
+## RenderPipeline
+
+- RenderPipelineLayout
+  ```
+  /// A `PipelineLayout` object describes the available binding groups of a pipeline.
+  /// It can be created with [`Device::create_pipeline_layout`].
+  ```
+- RenderPipeline
+  ```
+  /// A `RenderPipeline` object represents a graphics pipeline and its stages, bindings, vertex
+  /// buffers and targets. It can be created with [`Device::create_render_pipeline`].
+  ```
+
+
+## Wgpu buffers
+
+- `Buffer` is GPU-accessible buffer ^[[[WebGPU `GPUBuffer`](https://gpuweb.github.io/gpuweb/#buffer-interface)]]
+  - `BufferSlice`: wgpu side buffer util used to set range of buffers
+- It uses `BufferInitDescriptor` for initialization
+
+::: aside
+see `example_cube/src/lib.rs:275`
+:::
+
+
+## VertexBuffer
+
+Create a buffer and init with raw data.
+
+```rust
+let vertex_buffer = device.create_buffer_init(
+  &wgpu::util::BufferInitDescriptor {
+    label: Some("Vertex Buffer"),
+    contents: bytemuck::cast_slice(&vertices),
+    usage: wgpu::BufferUsages::VERTEX,
+});
+```
+
+- `contents`: plain data
+- `usage`: buffer usage
+
+
+## VertexBuffer
+
+Set vertex buffer before the draw call in the render pass.
+
+```{.rust}
+render_pass.set_vertex_buffer(slot, vertex_buffer.slice(..));
+```
+
+- `slot`: index in `VertexState::buffers`
+  - ```rust
+    // in render_pipeline:
+    wgpu::VertexState {
+        module: &shader,
+        entry_point: "vs_main",
+        buffers: &[model::ModelVertex::desc(), InstanceRaw::desc()],
+    },
+    ```
+  - Layouts and buffers are set separately!
+
+- `BufferSlice`: wgpu rust side buffer slice
+  - easy to use (no starts or offsets)
+
+## Cont.
+
+```rust
+// in desc():
+wgpu::VertexBufferLayout {
+    array_stride: mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
+    step_mode: wgpu::VertexStepMode::Vertex,
+    attributes: &[
+        wgpu::VertexAttribute {
+            format: wgpu::VertexFormat::Float32x3,
+            offset: 0,
+            shader_location: 0,
+        },
+        wgpu::VertexAttribute {
+            format: wgpu::VertexFormat::Float32x2,
+            offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+            shader_location: 1,
+        },
+        wgpu::VertexAttribute {
+            format: wgpu::VertexFormat::Float32x3,
+            offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
+            shader_location: 2,
+        },
+    ],
+}
+```
+
+## Uniform Buffers
+
+- Data that is uniform in the same render pass
+  - read-only in shader
+  - can be updated (frequently) in client code
+  ```rust
+  usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+  ```
+- Comparing to `OpenGL`:
+  ```{.c++}
+  glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
+  ```
+
+## Cont.
+
+- BindgroupLayout
+  - defines how shader treats the buffer
+  ```rust
+  wgpu::BindGroupLayoutEntry {
+    binding: 0,
+    visibility: wgpu::ShaderStages::VERTEX,
+    ty: wgpu::BindingType::Buffer {
+        ty: wgpu::BufferBindingType::Uniform,
+        has_dynamic_offset: false,
+        min_binding_size: None,
+    },
+    count: None,
+  }
+  ```
+
+::: aside
+source code: `example_cube/src/lib.rs:282`
+:::
+
+## Textures
+
+- BindgroupLayout
+  - the wgpu shader treats Buffers and Textures in the same way -- `bindgroup`
+- `OpenGL`: treats `sampler*d` as a uniform
+  1. enable texture unit
+  2. bind texture
+  3. call `glUniform*` to set sampler in the shader
+- `WGPU`: set bindgroup where `TextureView` and `Sampler` are specifies saperately
+
+## Cont.
+
+```rust
+wgpu::BindGroupLayoutDescriptor {
+    entries: &[
+        wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                multisampled: false,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            },
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 1,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        },
+    ],
+    label: Some("texture_bind_group_layout"),
+}
+```
+
+## Cont.
+
+```rust
+let diffuse_bind_group = device.create_bind_group(
+    &wgpu::BindGroupDescriptor {
+        layout: &texture_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(
+                    &diffuse_texture.view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(
+                    &diffuse_texture.sampler),
+            },
+        ],
+        label: Some("diffuse_bind_group"),
+});
+```
+
+::: aside
+source code: `example_cube/src/lib.rs:208,233`
+:::
+
+## BindGroup
+
+- BindGroupLayout
+  ```
+  /// Handle to a binding group layout.
+  ///
+  /// A `BindGroupLayout` is a handle to the GPU-side layout of a binding group. It can be used to
+  /// create a [`BindGroupDescriptor`] object, which in turn can be used to create a [`BindGroup`]
+  /// object with [`Device::create_bind_group`]. A series of `BindGroupLayout`s can also be used to
+  /// create a [`PipelineLayoutDescriptor`], which can be used to create a [`PipelineLayout`].
+  ///
+  /// It can be created with [`Device::create_bind_group_layout`].
+  ///
+  /// Corresponds to [WebGPU `GPUBindGroupLayout`](
+  /// https://gpuweb.github.io/gpuweb/#gpubindgrouplayout).
+  ```
+
+## BindGroup
+
+- BindGroup
+  ```
+  /// Handle to a binding group.
+  ///
+  /// A `BindGroup` represents the set of resources bound to the bindings described by a
+  /// [`BindGroupLayout`]. It can be created with [`Device::create_bind_group`]. A `BindGroup` can
+  /// be bound to a particular [`RenderPass`] with [`RenderPass::set_bind_group`], or to a
+  /// [`ComputePass`] with [`ComputePass::set_bind_group`].
+  ///
+  /// Corresponds to [WebGPU `GPUBindGroup`](https://gpuweb.github.io/gpuweb/#gpubindgroup).
+  ```
+
+## BindGroup in WGSL
+
+- Uniform
+
+```wgsl
+struct CameraUniform {
+    view_proj: mat4x4<f32>,
+};
+
+@group(1) @binding(0)
+var<uniform> camera: CameraUniform;
+```
+
+- Texture
+
+```wgsl
+@group(0) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(0) @binding(1)
+var s_diffuse: sampler;
+```
+
+
+
+# WebGPU Shading Language (WGSL) basics
+
+## Yes, you don't need to learn WGSL!
+
+Thanks to [Naga](https://github.com/gfx-rs/wgpu/tree/trunk/naga)
+
+![](assets/naga-support.png){width=80% fig-align="center"}
+
+. . .
+
+- ~~You only need to learn WGSL~~
+
+
+## Support languages
+
+- SPIR-V first class support
+- HLSL good support
+- GLSL has many limitations
+
+```glsl
+uniform sampler2D mySampler;
+uniform texture2D myTexture;
+```
+<br/>
+
+```wgsl
+@group(0) @binding(0) var mySampler: sampler;
+@group(0) @binding(1) var myTexture: texture_2d<f32>;
+```
+
+::: aside
+current support: https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points
+:::
+
+## WGSL simple example ^[[learn-wgpu: tutorial3](https://github.com/sotrh/learn-wgpu/blob/master/code/beginner/tutorial3-pipeline/src/shader.wgsl)]
+
+```wgsl
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+};
+
+@vertex
+fn vs_main(
+    @builtin(vertex_index) in_vertex_index: u32,
+) -> VertexOutput {
+    var out: VertexOutput;
+    let x = f32(1 - i32(in_vertex_index)) * 0.5;
+    let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 0.5;
+    out.clip_position = vec4<f32>(x, y, 0.0, 1.0);
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(0.3, 0.2, 0.1, 1.0);
+}
+```
+
+# Compute Shader in WGPU
+
+## Structure of Compute Pass
+
+```{mermaid}
+flowchart TB
+
+  subgraph Bindgroups
+  BindGroup["Bindgroup 0
+  Bindgroup 1
+  Bindgroup 2
+  ..."]
+
+  Buffers --> BindGroupLayout & BindGroup
+  Texture --> BindGroupLayout & BindGroup
+
+  BindGroupLayout --> BindGroup
+  end
+
+  BindGroupLayouts --> PipelineLayout
+
+  BindGroup -->|set_bindgroup| ComputePass
+
+  BindGroupLayouts -.- BindGroupLayout
+
+  PipelineLayout --> ComputePipeline
+
+  Shader --> ComputePipeline
+
+  ComputePipeline -->|set_pipeline| ComputePass
+```
+
+## Compute Pass
+
+- Number of cells to run, the (x,y,z) size of item being processed
+
+```rust
+compute_pass.dispatch_workgroups(numbers.len() as u32, 1, 1);
+```
+
+- in each cell:
+
+```{.wgsl code-line-numbers="2"}
+@compute
+@workgroup_size(2, 1, 1)
+fn main(
+  @builtin(local_invocation_id) lid: vec3<u32>, 
+  @builtin(workgroup_id) wid: vec3<u32>
+  ) {
+    if lid.x == 0u {
+        a[wid.x] += 1;
+    } else if lid.x == 1u {
+        b[wid.x] += 1;
+    }
+}
+```
+
+## Compute Shader in WGSL
+
+### Workgroups
+
+```rust
+@builtin(workgroup_id)            workgroup_id : vec3<u32>,
+@builtin(local_invocation_id)     local_invocation_id : vec3<u32>,
+@builtin(global_invocation_id)    global_invocation_id : vec3<u32>,
+@builtin(local_invocation_index)  local_invocation_index: u32,
+@builtin(num_workgroups)          num_workgroups: vec3<u32>
+```
+
+### Storage buffers
+```rust
+@group(0) @binding(0) var<storage, read_write> v_indices: array<u32>;
+@group(1) @binding(0) var texture: texture_storage_2d<rgba8unorm, write>;
+// in fn main():
+textureStore(texture, location, value);
+```
+
+::: aside
+[wgpu v0.18 workgroup examples](https://github.com/gfx-rs/wgpu/tree/v0.18/examples/hello-workgroups)
+
+[WebGPU Compute Shader Basics](https://webgpufundamentals.org/webgpu/lessons/webgpu-compute-shaders.html)
+:::
+
+# Demos
+
+# Q&A
+
+# Thank you!
+
 

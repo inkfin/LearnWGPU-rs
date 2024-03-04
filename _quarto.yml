@@ -21,13 +21,10 @@ website:
         contents:
           - demos/example_cube/index.qmd
           - demos/example_fish/index.qmd
-      # - about.qmd
+      - about.qmd
 
 format:
   html:
     theme: cosmo
     css: styles.css
     toc: true
-
-
-

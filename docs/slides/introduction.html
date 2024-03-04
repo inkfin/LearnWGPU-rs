@@ -7,11 +7,11 @@
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="../site_libs/quarto-html/light-border.css" rel="stylesheet">
 <link href="../site_libs/quarto-html/quarto-html.min.css" rel="stylesheet" data-mode="light">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
   <meta name="generator" content="quarto-1.4.550">
 
   <meta name="author" content="Ink Zhang">
-  <title>Learn WGPU-rs - Introduction to WGPU</title>
+  <title>Learn WGPU-rs - WGPU with Rust in 50min</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
@@ -29,6 +29,71 @@
       margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
       vertical-align: middle;
     }
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      { color: #003b4f; background-color: #f1f3f5; }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span { color: #003b4f; } /* Normal */
+    code span.al { color: #ad0000; } /* Alert */
+    code span.an { color: #5e5e5e; } /* Annotation */
+    code span.at { color: #657422; } /* Attribute */
+    code span.bn { color: #ad0000; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #003b4f; } /* ControlFlow */
+    code span.ch { color: #20794d; } /* Char */
+    code span.cn { color: #8f5902; } /* Constant */
+    code span.co { color: #5e5e5e; } /* Comment */
+    code span.cv { color: #5e5e5e; font-style: italic; } /* CommentVar */
+    code span.do { color: #5e5e5e; font-style: italic; } /* Documentation */
+    code span.dt { color: #ad0000; } /* DataType */
+    code span.dv { color: #ad0000; } /* DecVal */
+    code span.er { color: #ad0000; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #ad0000; } /* Float */
+    code span.fu { color: #4758ab; } /* Function */
+    code span.im { color: #00769e; } /* Import */
+    code span.in { color: #5e5e5e; } /* Information */
+    code span.kw { color: #003b4f; } /* Keyword */
+    code span.op { color: #5e5e5e; } /* Operator */
+    code span.ot { color: #003b4f; } /* Other */
+    code span.pp { color: #ad0000; } /* Preprocessor */
+    code span.sc { color: #5e5e5e; } /* SpecialChar */
+    code span.ss { color: #20794d; } /* SpecialString */
+    code span.st { color: #20794d; } /* String */
+    code span.va { color: #111111; } /* Variable */
+    code span.vs { color: #20794d; } /* VerbatimString */
+    code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
   </style>
   <link rel="stylesheet" href="../site_libs/revealjs/dist/theme/quarto.css">
   <link href="../site_libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
@@ -320,13 +385,14 @@
       margin-right: 0; 
     }
   </style>
+  <script src="../site_libs/quarto-diagram/mermaid-postprocess-shim.js"></script>
 </head>
-<body class="quarto-dark">
+<body class="quarto-light">
   <div class="reveal">
     <div class="slides">
 
 <section id="title-slide" class="quarto-title-block center">
-  <h1 class="title">Introduction to WGPU</h1>
+  <h1 class="title">WGPU with Rust in 50min</h1>
 
 <div class="quarto-title-authors">
 <div class="quarto-title-author">
@@ -337,11 +403,988 @@ Ink Zhang
 </div>
 
 </section>
+<section>
+<section id="basics" class="title-slide slide level1 center">
+<h1>Basics</h1>
+
+</section>
 <section id="what-is-webgpu" class="slide level2">
 <h2>What is WebGPU?</h2>
 <ul>
-<li>WebGPU is the next generation of WebGL</li>
+<li>WebGPU is the next generation of WebGL and a cross-platform API.</li>
+<li>Backends: browser <code>webgpu</code>, <code>vulkan</code>, <code>DX12</code>, <code>metal</code>…</li>
+<li>Implementations
+<ul>
+<li><a href="https://github.com/gfx-rs/wgpu">wgpu</a> for rust</li>
+<li><a href="https://github.com/gfx-rs/wgpu-native">wgpu-native</a> for c++</li>
+<li><a href="https://dawn.googlesource.com/dawn">google dawn</a> implementation in chromium</li>
+</ul></li>
 </ul>
+<div id="fig" class="quarto-layout-panel" data-layout-ncol="2">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-wgpu" class="quarto-figure quarto-figure-center quarto-float">
+<figure class="quarto-float quarto-float-fig">
+<div aria-describedby="fig-wgpu-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img data-src="assets/wgpu-github-page.png">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-wgpu-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: wgpu github page
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-wgpu-native" class="quarto-figure quarto-figure-center quarto-float">
+<figure class="quarto-float quarto-float-fig">
+<div aria-describedby="fig-wgpu-native-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img data-src="assets/wgpu-native-github-page.png">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-wgpu-native-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: wgpu-native github page
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<aside class="notes">
+<ul>
+<li>more universal</li>
+<li>multiple backends, including Vulkan, webgpu</li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
+<section id="meet-rust" class="slide level2">
+<h2>Meet Rust <img data-src="https://www.rust-lang.org/static/images/rust-logo-blk.svg" style="width:10.0%"></h2>
+<ul>
+<li>Rust is a modern programming language that balances high-level ergonomics and low-level control. <sup>1</sup>
+<ol type="1">
+<li>memory safety</li>
+<li>zero-cost abstraction</li>
+<li>powerful toolsets</li>
+</ol></li>
+</ul>
+<aside><ol class="aside-footnotes"><li id="fn1"><p>The book: https://doc.rust-lang.org/book/</p></li></ol></aside></section>
+<section id="to-get-started" class="slide level2">
+<h2>To get started</h2>
+<ul>
+<li>Install <code>rustup</code> (<a href="https://www.rust-lang.org/tools/install">Instructions</a>)</li>
+</ul>
+<div class="sourceCode" id="cb1"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb1-1"><a></a>rustc --version</span>
+<span id="cb1-2"><a></a># will gives you something like: </span>
+<span id="cb1-3"><a></a>#   rustc 1.75.0 (82e1608df 2023-12-21)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li>Cargo is the rust’s official package manager</li>
+</ul>
+<div class="sourceCode" id="cb2"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb2-1"><a></a># cd into the project root directory</span>
+<span id="cb2-2"><a></a>cargo run --release</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li>Install <code>wasm-pack</code> (<a href="https://rustwasm.github.io/wasm-pack/installer/">Instructions</a>)</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb3-1"><a></a>wasm-pack build --target web</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="comparing-to-opengl-c" class="slide level2">
+<h2>Comparing to OpenGL &amp; C++…</h2>
+<div class="columns">
+<div class="column">
+<p>C++</p>
+<ul>
+<li>more flexible with raw pointer</li>
+<li>use a lot of <strong>classes</strong>, <strong>interfaces</strong></li>
+<li>the language of lots of game engines: <strong>Source</strong>, <strong>Unreal Engine</strong></li>
+<li><code>glew</code> + <code>glfw</code> + <code>imgui</code></li>
+</ul>
+</div><div class="column">
+<p>Rust</p>
+<ul>
+<li>better error handle &amp; easier async</li>
+<li>no Class, use <strong>struct</strong> &amp; <strong>traits</strong></li>
+<li>new experimental game engines under development: <strong>Bevy</strong>, <strong>Fyrox</strong></li>
+<li><code>wgpu</code> + <code>winit</code> + <code>egui</code></li>
+</ul>
+</div>
+</div>
+</section>
+<section id="hello-world" class="slide level2">
+<h2>Hello world!</h2>
+<p>First, create a rust project using <code>cargo</code></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb4-1"><a></a>cargo new hello-world</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Use your favorite editor and edit the <code>src/main.rs</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb5-1"><a></a><span class="kw">fn</span> main() <span class="op">{</span></span>
+<span id="cb5-2"><a></a>    <span class="kw">let</span> name <span class="op">=</span> <span class="st">"ink"</span><span class="op">;</span></span>
+<span id="cb5-3"><a></a>    <span class="pp">println!</span>(<span class="st">"Hello, world! from {:?}"</span><span class="op">,</span> name)</span>
+<span id="cb5-4"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>To run the code:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb6-1"><a></a>cargo run</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>The result should be:</p>
+<div id="23a079c3" class="cell" data-execution_count="1">
+<div class="cell-output cell-output-stdout">
+<pre><code>Hello, world! from "ink"</code></pre>
+</div>
+</div>
+</section>
+<section id="great-now-the-wgpu-examples" class="slide level2">
+<h2>Great! Now the wgpu examples</h2>
+<ul>
+<li>The example git repository: <a href="https://github.com/inkfin/LearnWGPU-rs">link</a></li>
+</ul>
+<div class="sourceCode" id="cb8"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb8-1"><a></a># we do a shallow clone</span>
+<span id="cb8-2"><a></a>git clone https://github.com/inkfin/LearnWGPU-rs.git --depth=1 </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>See the README.md for build instructions, or you can find the pre-build examples in the <a href="https://inkfin.github.io/LearnWGPU-rs/">DEMO</a> part on my GitHub page.</p>
+
+<aside><div>
+<p>The official repository example (some of v0.18 examples are broken with current API): <a href="https://github.com/gfx-rs/wgpu/tree/v0.18/examples">wgpu v0.18 examples</a></p>
+</div></aside></section>
+<section id="take-a-sip-of-coffee.." class="slide level2">
+<h2>Take a sip of coffee..</h2>
+<ul>
+<li><p>Let’s take a short break. Feel free to stretch, refill your coffee, and prepare for our next segment on integrating Rust with wgpu.</p></li>
+<li><p>Have any questions so far?</p></li>
+</ul>
+</section></section>
+<section>
+<section id="wgpu-pipeline" class="title-slide slide level1 center">
+<h1>Wgpu pipeline</h1>
+
+</section>
+<section id="what-we-have-learned-from-521" class="slide level2">
+<h2>What we have learned from 521</h2>
+<div>
+<ul>
+<li class="fragment">Everything is in a giant state machine</li>
+<li class="fragment"><code>glCommand</code>s depend on context</li>
+<li class="fragment">Objects are generated and returned as IDs</li>
+<li class="fragment">Need to <em>bind</em> objects to the current target before performing any actions</li>
+<li class="fragment">No abstraction for render passes and render pipeline
+<ul>
+<li class="fragment">Need developers to create their own pipeline by setting things in the context</li>
+</ul></li>
+</ul>
+</div>
+</section>
+<section id="wgpu-pipeline-1" class="slide level2 smaller">
+<h2>Wgpu pipeline</h2>
+<ul>
+<li>Better abstractions (simillar to vulkan)</li>
+</ul>
+<div class="cell" data-fig-responsive="false" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class=""><p></p>
+<div>
+<svg aria-roledescription="flowchart-v2" role="graphics-document document" viewbox="-8 -8 325.375 134" style="; display: block; margin: auto auto auto auto" xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="960" id="mermaid-figure-1" height="192">
+<style>#mermaid-figure-1{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#333;}#mermaid-figure-1 .error-icon{fill:#552222;}#mermaid-figure-1 .error-text{fill:#552222;stroke:#552222;}#mermaid-figure-1 .edge-thickness-normal{stroke-width:2px;}#mermaid-figure-1 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-figure-1 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-figure-1 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-figure-1 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-figure-1 .marker{fill:#333333;stroke:#333333;}#mermaid-figure-1 .marker.cross{stroke:#333333;}#mermaid-figure-1 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-figure-1 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#333;}#mermaid-figure-1 .cluster-label text{fill:#333;}#mermaid-figure-1 .cluster-label span,#mermaid-figure-1 p{color:#333;}#mermaid-figure-1 .label text,#mermaid-figure-1 span,#mermaid-figure-1 p{fill:#333;color:#333;}#mermaid-figure-1 .node rect,#mermaid-figure-1 .node circle,#mermaid-figure-1 .node ellipse,#mermaid-figure-1 .node polygon,#mermaid-figure-1 .node path{fill:#ECECFF;stroke:#9370DB;stroke-width:1px;}#mermaid-figure-1 .flowchart-label text{text-anchor:middle;}#mermaid-figure-1 .node .label{text-align:center;}#mermaid-figure-1 .node.clickable{cursor:pointer;}#mermaid-figure-1 .arrowheadPath{fill:#333333;}#mermaid-figure-1 .edgePath .path{stroke:#333333;stroke-width:2.0px;}#mermaid-figure-1 .flowchart-link{stroke:#333333;fill:none;}#mermaid-figure-1 .edgeLabel{background-color:#e8e8e8;text-align:center;}#mermaid-figure-1 .edgeLabel rect{opacity:0.5;background-color:#e8e8e8;fill:#e8e8e8;}#mermaid-figure-1 .cluster rect{fill:#ffffde;stroke:#aaaa33;stroke-width:1px;}#mermaid-figure-1 .cluster text{fill:#333;}#mermaid-figure-1 .cluster span,#mermaid-figure-1 p{color:#333;}#mermaid-figure-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(80, 100%, 96.2745098039%);border:1px solid #aaaa33;border-radius:2px;pointer-events:none;z-index:100;}#mermaid-figure-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}#mermaid-figure-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style>
+<g><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="10" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="0" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="11" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="-1" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="12" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="-1" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Instance LE-Adapter" id="L-Instance-Adapter-0" d="M74.8125,17L78.97916666666667,17C83.14583333333333,17,91.47916666666667,17,101.69587053571429,21.166666666666668C111.91257440476191,25.333333333333332,124.01264880952381,33.666666666666664,130.0626860119048,37.833333333333336L136.11272321428572,42"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Surface LE-Adapter" id="L-Surface-Adapter-0" d="M71.71875,101L76.40104166666667,101C81.08333333333333,101,90.44791666666667,101,101.18024553571429,96.83333333333333C111.91257440476191,92.66666666666667,124.01264880952381,84.33333333333333,130.0626860119048,80.16666666666667L136.11272321428572,76"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Adapter LE-Device" id="L-Adapter-Device-0" d="M185.48102678571428,42L191.5310639880952,37.833333333333336C197.58110119047618,33.666666666666664,209.68117559523807,25.333333333333332,219.8978794642857,21.166666666666668C230.11458333333334,17,238.44791666666666,17,242.61458333333334,17L246.78125,17"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Adapter LE-Queue" id="L-Adapter-Queue-0" d="M185.48102678571428,76L191.5310639880952,80.16666666666667C197.58110119047618,84.33333333333333,209.68117559523807,92.66666666666667,220.05152529761904,96.83333333333333C230.421875,101,239.0625,101,243.3828125,101L247.703125,101"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g></g><g class="nodes"><g transform="translate(37.40625, 17)" id="flowchart-Instance-12" class="node default default flowchart-label"><rect height="34" width="74.8125" y="-17" x="-37.40625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-29.90625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="59.8125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Instance</span>
+</div>
+</foreignobject></g></g><g transform="translate(37.40625, 101)" id="flowchart-Surface-13" class="node default default flowchart-label"><rect height="34" width="68.625" y="-17" x="-34.3125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-26.8125, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="53.625">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Surface</span>
+</div>
+</foreignobject></g></g><g transform="translate(160.796875, 59)" id="flowchart-Adapter-14" class="node default default flowchart-label"><rect height="34" width="71.96875" y="-17" x="-35.984375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-28.484375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="56.96875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Adapter</span>
+</div>
+</foreignobject></g></g><g transform="translate(278.078125, 17)" id="flowchart-Device-16" class="node default default flowchart-label"><rect height="34" width="62.59375" y="-17" x="-31.296875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-23.796875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="47.59375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Device</span>
+</div>
+</foreignobject></g></g><g transform="translate(278.078125, 101)" id="flowchart-Queue-17" class="node default default flowchart-label"><rect height="34" width="60.75" y="-17" x="-30.375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-22.875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="45.75">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Queue</span>
+</div>
+</foreignobject></g></g></g></g></g>
+</svg>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<div>
+<ul>
+<li class="fragment"><strong>Instance</strong>: a handle to our GPU, first thing ever created ([<code>GPU</code>] in WebGPU)</li>
+<li class="fragment"><strong>Surface</strong>: a platform-specific surface (e.g., a window) onto which rendered images may be presented ([<code>GPUCanvasContext</code>] in WebGPU)
+<ul>
+<li class="fragment"><em>Careful: need to live as long as the window (canvas)</em></li>
+</ul></li>
+<li class="fragment"><strong>Adapter</strong>: Handle to a physical graphics and/or compute device ([<code>GPUAdapter</code>] in WebGPU)</li>
+</ul>
+</div>
+</section>
+<section id="cont." class="slide level2 smaller">
+<h2>Cont.</h2>
+<div class="cell" data-fig-responsive="false" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class=""><p></p>
+<div>
+<svg aria-roledescription="flowchart-v2" role="graphics-document document" viewbox="-8 -8 325.375 134" style="; display: block; margin: auto auto auto auto" xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="960" id="mermaid-figure-4" height="192">
+<style>#mermaid-figure-4{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#333;}#mermaid-figure-4 .error-icon{fill:#552222;}#mermaid-figure-4 .error-text{fill:#552222;stroke:#552222;}#mermaid-figure-4 .edge-thickness-normal{stroke-width:2px;}#mermaid-figure-4 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-figure-4 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-figure-4 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-figure-4 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-figure-4 .marker{fill:#333333;stroke:#333333;}#mermaid-figure-4 .marker.cross{stroke:#333333;}#mermaid-figure-4 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-figure-4 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#333;}#mermaid-figure-4 .cluster-label text{fill:#333;}#mermaid-figure-4 .cluster-label span,#mermaid-figure-4 p{color:#333;}#mermaid-figure-4 .label text,#mermaid-figure-4 span,#mermaid-figure-4 p{fill:#333;color:#333;}#mermaid-figure-4 .node rect,#mermaid-figure-4 .node circle,#mermaid-figure-4 .node ellipse,#mermaid-figure-4 .node polygon,#mermaid-figure-4 .node path{fill:#ECECFF;stroke:#9370DB;stroke-width:1px;}#mermaid-figure-4 .flowchart-label text{text-anchor:middle;}#mermaid-figure-4 .node .label{text-align:center;}#mermaid-figure-4 .node.clickable{cursor:pointer;}#mermaid-figure-4 .arrowheadPath{fill:#333333;}#mermaid-figure-4 .edgePath .path{stroke:#333333;stroke-width:2.0px;}#mermaid-figure-4 .flowchart-link{stroke:#333333;fill:none;}#mermaid-figure-4 .edgeLabel{background-color:#e8e8e8;text-align:center;}#mermaid-figure-4 .edgeLabel rect{opacity:0.5;background-color:#e8e8e8;fill:#e8e8e8;}#mermaid-figure-4 .cluster rect{fill:#ffffde;stroke:#aaaa33;stroke-width:1px;}#mermaid-figure-4 .cluster text{fill:#333;}#mermaid-figure-4 .cluster span,#mermaid-figure-4 p{color:#333;}#mermaid-figure-4 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(80, 100%, 96.2745098039%);border:1px solid #aaaa33;border-radius:2px;pointer-events:none;z-index:100;}#mermaid-figure-4 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}#mermaid-figure-4 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style>
+<g><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="10" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="0" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="11" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="-1" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="12" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="-1" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Instance LE-Adapter" id="L-Instance-Adapter-0" d="M74.8125,17L78.97916666666667,17C83.14583333333333,17,91.47916666666667,17,101.69587053571429,21.166666666666668C111.91257440476191,25.333333333333332,124.01264880952381,33.666666666666664,130.0626860119048,37.833333333333336L136.11272321428572,42"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Surface LE-Adapter" id="L-Surface-Adapter-0" d="M71.71875,101L76.40104166666667,101C81.08333333333333,101,90.44791666666667,101,101.18024553571429,96.83333333333333C111.91257440476191,92.66666666666667,124.01264880952381,84.33333333333333,130.0626860119048,80.16666666666667L136.11272321428572,76"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Adapter LE-Device" id="L-Adapter-Device-0" d="M185.48102678571428,42L191.5310639880952,37.833333333333336C197.58110119047618,33.666666666666664,209.68117559523807,25.333333333333332,219.8978794642857,21.166666666666668C230.11458333333334,17,238.44791666666666,17,242.61458333333334,17L246.78125,17"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Adapter LE-Queue" id="L-Adapter-Queue-0" d="M185.48102678571428,76L191.5310639880952,80.16666666666667C197.58110119047618,84.33333333333333,209.68117559523807,92.66666666666667,220.05152529761904,96.83333333333333C230.421875,101,239.0625,101,243.3828125,101L247.703125,101"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g></g><g class="nodes"><g transform="translate(37.40625, 17)" id="flowchart-Instance-12" class="node default default flowchart-label"><rect height="34" width="74.8125" y="-17" x="-37.40625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-29.90625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="59.8125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Instance</span>
+</div>
+</foreignobject></g></g><g transform="translate(37.40625, 101)" id="flowchart-Surface-13" class="node default default flowchart-label"><rect height="34" width="68.625" y="-17" x="-34.3125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-26.8125, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="53.625">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Surface</span>
+</div>
+</foreignobject></g></g><g transform="translate(160.796875, 59)" id="flowchart-Adapter-14" class="node default default flowchart-label"><rect height="34" width="71.96875" y="-17" x="-35.984375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-28.484375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="56.96875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Adapter</span>
+</div>
+</foreignobject></g></g><g transform="translate(278.078125, 17)" id="flowchart-Device-16" class="node default default flowchart-label"><rect height="34" width="62.59375" y="-17" x="-31.296875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-23.796875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="47.59375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Device</span>
+</div>
+</foreignobject></g></g><g transform="translate(278.078125, 101)" id="flowchart-Queue-17" class="node default default flowchart-label"><rect height="34" width="60.75" y="-17" x="-30.375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-22.875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="45.75">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Queue</span>
+</div>
+</foreignobject></g></g></g></g></g>
+</svg>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<div>
+<ul>
+<li class="fragment"><strong>Device</strong>: Open connection to a graphics and/or compute device. ([<code>GPUDevice</code>] in WebGPU)
+<ul>
+<li class="fragment">Responsible for the creation of most rendering and compute resources. These are then used in commands, which are submitted to a [<code>Queue</code>].</li>
+</ul></li>
+<li class="fragment"><strong>Queue</strong>: Handle to a command queue on a device ([<code>GPUQueue</code>] in WebGPU)
+<ul>
+<li class="fragment">executes recorded [<code>CommandBuffer</code>] objects and provides convenience methods for writing to <a href="Queue::write_buffer">buffers</a> and <a href="Queue::write_texture">textures</a>.</li>
+</ul></li>
+</ul>
+</div>
+</section>
+<section id="the-structure-of-a-renderpass" class="slide level2">
+<h2>The Structure of a RenderPass</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class=""><p></p>
+<div>
+<svg aria-roledescription="flowchart-v2" role="graphics-document document" viewbox="-8 -8 1179.3125 683" style="; display: block; margin: auto auto auto auto" xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="960" id="mermaid-figure-3" height="480">
+<style>#mermaid-figure-3{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#333;}#mermaid-figure-3 .error-icon{fill:#552222;}#mermaid-figure-3 .error-text{fill:#552222;stroke:#552222;}#mermaid-figure-3 .edge-thickness-normal{stroke-width:2px;}#mermaid-figure-3 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-figure-3 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-figure-3 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-figure-3 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-figure-3 .marker{fill:#333333;stroke:#333333;}#mermaid-figure-3 .marker.cross{stroke:#333333;}#mermaid-figure-3 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-figure-3 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#333;}#mermaid-figure-3 .cluster-label text{fill:#333;}#mermaid-figure-3 .cluster-label span,#mermaid-figure-3 p{color:#333;}#mermaid-figure-3 .label text,#mermaid-figure-3 span,#mermaid-figure-3 p{fill:#333;color:#333;}#mermaid-figure-3 .node rect,#mermaid-figure-3 .node circle,#mermaid-figure-3 .node ellipse,#mermaid-figure-3 .node polygon,#mermaid-figure-3 .node path{fill:#ECECFF;stroke:#9370DB;stroke-width:1px;}#mermaid-figure-3 .flowchart-label text{text-anchor:middle;}#mermaid-figure-3 .node .label{text-align:center;}#mermaid-figure-3 .node.clickable{cursor:pointer;}#mermaid-figure-3 .arrowheadPath{fill:#333333;}#mermaid-figure-3 .edgePath .path{stroke:#333333;stroke-width:2.0px;}#mermaid-figure-3 .flowchart-link{stroke:#333333;fill:none;}#mermaid-figure-3 .edgeLabel{background-color:#e8e8e8;text-align:center;}#mermaid-figure-3 .edgeLabel rect{opacity:0.5;background-color:#e8e8e8;fill:#e8e8e8;}#mermaid-figure-3 .cluster rect{fill:#ffffde;stroke:#aaaa33;stroke-width:1px;}#mermaid-figure-3 .cluster text{fill:#333;}#mermaid-figure-3 .cluster span,#mermaid-figure-3 p{color:#333;}#mermaid-figure-3 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(80, 100%, 96.2745098039%);border:1px solid #aaaa33;border-radius:2px;pointer-events:none;z-index:100;}#mermaid-figure-3 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}#mermaid-figure-3 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style>
+<g><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="10" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="0" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="11" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="-1" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="12" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="-1" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"><g id="PipelineLayout" class="cluster default flowchart-label"><rect height="379" width="269.03125" y="0" x="422.875" ry="0" rx="0" style=""></rect><g transform="translate(504.7890625, 0)" class="cluster-label"><foreignobject height="19" width="105.203125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">PipelineLayout</span>
+</div>
+</foreignobject></g></g><g id="Bindgroups" class="cluster default flowchart-label"><rect height="564" width="402.875" y="0" x="0" ry="0" rx="0" style=""></rect><g transform="translate(162.3125, 0)" class="cluster-label"><foreignobject height="19" width="78.25">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Bindgroups</span>
+</div>
+</foreignobject></g></g></g><g class="edgePaths"><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Buffers LE-BindGroupLayout" id="L-Buffers-BindGroupLayout-0" d="M187.81950908687944,87.5L197.70896590573284,96.41666666666667C207.59842272458627,105.33333333333333,227.37733636229314,123.16666666666667,244.68197175257515,149.08333333333334C261.98660714285717,175,276.8169642857143,209,284.2321428571429,226L291.64732142857144,243"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Buffers LE-BindGroup" id="L-Buffers-BindGroup-0" d="M168.96484375,87.5L168.96484375,96.41666666666667C168.96484375,105.33333333333333,168.96484375,123.16666666666667,168.96484375,151.91666666666666C168.96484375,180.66666666666666,168.96484375,220.33333333333334,168.96484375,260C168.96484375,299.6666666666667,168.96484375,339.3333333333333,168.96484375,364.9166666666667C168.96484375,390.5,168.96484375,402,170.159765625,413.5C171.35468749999998,425,173.74453125,436.5,174.939453125,442.25L176.134375,448"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Texture LE-BindGroupLayout" id="L-Texture-BindGroupLayout-0" d="M291.9214594414894,87.5L293.1116328679078,96.41666666666667C294.30180629432624,105.33333333333333,296.6821531471631,123.16666666666667,297.8723265735816,149.08333333333334C299.0625,175,299.0625,209,299.0625,226L299.0625,243"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Texture LE-BindGroup" id="L-Texture-BindGroup-0" d="M266.88865802304963,87.5L254.94888168587468,96.41666666666667C243.00910534869976,105.33333333333333,219.12955267434987,123.16666666666667,207.18977633717495,151.91666666666666C195.25,180.66666666666666,195.25,220.33333333333334,195.25,260C195.25,299.6666666666667,195.25,339.3333333333333,195.25,364.9166666666667C195.25,390.5,195.25,402,194.55567626953123,413.5C193.8613525390625,425,192.47270507812502,436.5,191.77838134765625,442.25L191.0840576171875,448"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-BindGroupLayout LE-BindGroup" id="L-BindGroupLayout-BindGroup-0" d="M299.0625,277L299.0625,294C299.0625,311,299.0625,345,299.0625,367.75C299.0625,390.5,299.0625,402,288.482421875,415.2091207958966C277.90234375,428.4182415917932,256.7421875,443.3364831835864,246.162109375,450.795603979483L235.58203125,458.25472477537954"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Buffers LE-RenderPass" id="L-Buffers-RenderPass-0" d="M148.55222185283688,87.5L137.84560154403073,96.41666666666667C127.13898123522459,105.33333333333333,105.72574061761229,123.16666666666667,95.01912030880614,151.91666666666666C84.3125,180.66666666666666,84.3125,220.33333333333334,84.3125,260C84.3125,299.6666666666667,84.3125,339.3333333333333,84.3125,364.9166666666667C84.3125,390.5,84.3125,402,84.3125,421.0833333333333C84.3125,440.1666666666667,84.3125,466.8333333333333,84.3125,491.9166666666667C84.3125,517,84.3125,540.5,84.3125,558C84.3125,575.5,84.3125,587,94.81462378640776,598.5C105.31674757281553,610,126.32099514563106,621.5,136.82311893203882,627.25L147.3252427184466,633"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-BindGroup LE-RenderPass" id="L-BindGroup-RenderPass-0" d="M185.58984375,539L185.58984375,543.1666666666666C185.58984375,547.3333333333334,185.58984375,555.6666666666666,185.58984375,565.5833333333334C185.58984375,575.5,185.58984375,587,184.78430294296118,598.5C183.97876213592235,610,182.36768052184468,621.5,181.56213971480585,627.25L180.756598907767,633"></path><path style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-BindGroupLayouts LE-BindGroupLayout" id="L-BindGroupLayouts-BindGroupLayout-0" d="M519.1776374113475,116L515.8485520094563,120.16666666666667C512.519466607565,124.33333333333333,505.86129580378247,132.66666666666666,473.94069254474834,153.83333333333334C442.0200892857143,175,384.8370535714286,209,356.2455357142857,226L327.65401785714283,243"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-BindGroupLayouts LE-RenderPipelineLayout" id="L-BindGroupLayouts-RenderPipelineLayout-0" d="M561.9851507092199,116L562.5761672576832,120.16666666666667C563.1671838061466,124.33333333333333,564.3492169030733,132.66666666666666,564.9402334515366,153.83333333333334C565.53125,175,565.53125,209,565.53125,226L565.53125,243"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-RenderPipelineLayout LE-RenderPipeline" id="L-RenderPipelineLayout-RenderPipeline-0" d="M565.53125,277L565.53125,294C565.53125,311,565.53125,345,565.53125,367.75C565.53125,390.5,565.53125,402,600.102294921875,418.25C634.67333984375,434.5,703.8154296875,455.5,738.386474609375,466L772.95751953125,476.5"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-RenderPipeline LE-RenderPass" id="L-RenderPipeline-RenderPass-0" d="M828.9296875,510.5L828.9296875,519.4166666666666C828.9296875,528.3333333333334,828.9296875,546.1666666666666,828.9296875,560.8333333333334C828.9296875,575.5,828.9296875,587,728.3815104166666,600.7097168682175C627.8333333333334,614.4194337364348,426.7369791666667,630.3388674728698,326.1888020833333,638.2985843410871L225.640625,646.2583012093046"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-VertexState LE-RenderPipeline" id="L-VertexState-RenderPipeline-0" d="M828.9296875,354L828.9296875,358.1666666666667C828.9296875,362.3333333333333,828.9296875,370.6666666666667,828.9296875,380.5833333333333C828.9296875,390.5,828.9296875,402,828.9296875,418.25C828.9296875,434.5,828.9296875,455.5,828.9296875,466L828.9296875,476.5"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-FragmentState LE-RenderPipeline" id="L-FragmentState-RenderPipeline-0" d="M1071.8828125,312L1071.8828125,323.1666666666667C1071.8828125,334.3333333333333,1071.8828125,356.6666666666667,1071.8828125,373.5833333333333C1071.8828125,390.5,1071.8828125,402,1039.9952148437499,418.25C1008.1076171875001,434.5,944.332421875,455.5,912.44482421875,466L880.5572265625,476.5"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g transform="translate(84.3125, 413.5)" class="edgeLabel"><g transform="translate(-64.3125, -9.5)" class="label"><foreignobject height="19" width="128.625">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel">set_vertex_buffer</span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g transform="translate(828.9296875, 598.5)" class="edgeLabel"><g transform="translate(-43.90625, -9.5)" class="label"><foreignobject height="19" width="87.8125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel">set_pipeline</span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g></g><g class="nodes"><g transform="translate(555.53125, 70.5)" id="flowchart-BindGroupLayouts-72" class="node default default flowchart-label"><rect height="91" width="195.3125" y="-45.5" x="-97.65625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-90.15625, -38)" style="" class="label"><rect></rect><foreignobject height="76" width="180.3125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">UniformBindGroupLayout<br>TextureBindGroupLayout<br>StorageBindGroupLayout<br>…</span>
+</div>
+</foreignobject></g></g><g transform="translate(565.53125, 260)" id="flowchart-RenderPipelineLayout-73" class="node default default flowchart-label"><rect height="34" width="170.1875" y="-17" x="-85.09375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-77.59375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="155.1875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">RenderPipelineLayout</span>
+</div>
+</foreignobject></g></g><g transform="translate(973.453125, 200)" class="root"><g class="clusters"><g id="FragmentState" class="cluster default flowchart-label"><rect height="104" width="181.859375" y="8" x="8" ry="0" rx="0" style=""></rect><g transform="translate(46.09375, 8)" class="cluster-label"><foreignobject height="19" width="105.671875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">FragmentState</span>
+</div>
+</foreignobject></g></g></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g transform="translate(98.9296875, 60)" id="flowchart-FragmentShader-71" class="node default default flowchart-label"><rect height="34" width="131.859375" y="-17" x="-65.9296875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-58.4296875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="116.859375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">FragmentShader</span>
+</div>
+</foreignobject></g></g></g></g><g transform="translate(719.40625, 158)" class="root"><g class="clusters"><g id="VertexState" class="cluster default flowchart-label"><rect height="188" width="204.046875" y="8" x="8" ry="0" rx="0" style=""></rect><g transform="translate(68.0625, 8)" class="cluster-label"><foreignobject height="19" width="83.921875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">VertexState</span>
+</div>
+</foreignobject></g></g></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g transform="translate(110.0234375, 60)" id="flowchart-VertexShader-69" class="node default default flowchart-label"><rect height="34" width="110.109375" y="-17" x="-55.0546875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-47.5546875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="95.109375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">VertexShader</span>
+</div>
+</foreignobject></g></g><g transform="translate(110.0234375, 144)" id="flowchart-VertexBufferLayout-70" class="node default default flowchart-label"><rect height="34" width="154.046875" y="-17" x="-77.0234375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-69.5234375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="139.046875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">VertexBufferLayout</span>
+</div>
+</foreignobject></g></g></g></g><g transform="translate(185.58984375, 493.5)" id="flowchart-BindGroup-60" class="node default default flowchart-label"><rect height="91" width="99.984375" y="-45.5" x="-49.9921875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-42.4921875, -38)" style="" class="label"><rect></rect><foreignobject height="76" width="84.984375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Bindgroup 0<br>Bindgroup 1<br>Bindgroup 2<br>…</span>
+</div>
+</foreignobject></g></g><g transform="translate(299.0625, 260)" id="flowchart-BindGroupLayout-62" class="node default default flowchart-label"><rect height="34" width="137.625" y="-17" x="-68.8125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-61.3125, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="122.625">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">BindGroupLayout</span>
+</div>
+</foreignobject></g></g><g transform="translate(168.96484375, 70.5)" id="flowchart-Buffers-61" class="node default default flowchart-label"><rect height="34" width="66.046875" y="-17" x="-33.0234375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-25.5234375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="51.046875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Buffers</span>
+</div>
+</foreignobject></g></g><g transform="translate(289.65234375, 70.5)" id="flowchart-Texture-64" class="node default default flowchart-label"><rect height="34" width="69.078125" y="-17" x="-34.5390625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-27.0390625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="54.078125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Texture</span>
+</div>
+</foreignobject></g></g><g transform="translate(178.375, 650)" id="flowchart-RenderPass-75" class="node default default flowchart-label"><rect height="34" width="94.53125" y="-17" x="-47.265625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-39.765625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="79.53125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">RenderPass</span>
+</div>
+</foreignobject></g></g><g transform="translate(828.9296875, 493.5)" id="flowchart-RenderPipeline-83" class="node default default flowchart-label"><rect height="34" width="122.125" y="-17" x="-61.0625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-53.5625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="107.125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">RenderPipeline</span>
+</div>
+</foreignobject></g></g></g></g></g>
+</svg>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="renderpass" class="slide level2">
+<h2>RenderPass</h2>
+<p>This is the vulkan || webgpu abstraction of rendering procedure.</p>
+<p>Encoder &amp; Renderpass object will return a <code>CommandBuffer</code>, a complete sequence of commands that may be submitted to a command queue</p>
+<!-- ```{mermaid}
+%%| fig-responsive: false
+%%| fig-height: 3
+classDiagram
+  class RenderPass
+  RenderPass: +RenderPassColorAttachment color_attachments
+  RenderPass: +RenderPassDepthStencilAttachment depth_stencil_attachment
+  RenderPass: +QueryPass occlusion_query_set
+  RenderPass: +RenderPassTimestampWrites timestamp_writes
+  RenderPass: +set_pipeline()
+  RenderPass: +set_vertex_buffer()
+  RenderPass: +set_index_buffer()
+  RenderPass: +set_bind_group()
+  RenderPass: +draw_indexed()
+``` -->
+<ul>
+<li><strong>BindGroups</strong> (maps Buffers &amp; Textures to bind points)</li>
+<li><strong>VertexBufferLayout</strong> (VertexAttributes)</li>
+<li><strong>Shader</strong></li>
+</ul>
+</section>
+<section id="renderpass-1" class="slide level2">
+<h2>RenderPass</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb9-1"><a></a><span class="kw">let</span> <span class="kw">mut</span> encoder <span class="op">=</span> device<span class="op">.</span>create_command_encoder(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb9-2"><a></a><span class="op">{</span></span>
+<span id="cb9-3"><a></a>  <span class="co">// force out of scope since render_pass can't live longer than encoder</span></span>
+<span id="cb9-4"><a></a>  <span class="kw">let</span> <span class="kw">mut</span> render_pass <span class="op">=</span> encoder<span class="op">.</span>begin_render_pass(</span>
+<span id="cb9-5"><a></a>    <span class="op">&amp;</span><span class="pp">wgpu::</span>RenderPassDescriptor <span class="op">{</span></span>
+<span id="cb9-6"><a></a>      label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"Render Pass"</span>)<span class="op">,</span></span>
+<span id="cb9-7"><a></a>      color_attachments<span class="op">:</span> <span class="op">...,</span></span>
+<span id="cb9-8"><a></a>      depth_stencil_attachment<span class="op">:</span> <span class="op">...,</span></span>
+<span id="cb9-9"><a></a>      occlusion_query_set<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb9-10"><a></a>      timestamp_writes<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb9-11"><a></a>  <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb9-12"><a></a>  render_pass<span class="op">.</span>set_pipeline(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb9-13"><a></a>  render_pass<span class="op">.</span>set_vertex_buffer(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb9-14"><a></a>  render_pass<span class="op">.</span>set_index_buffer(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb9-15"><a></a>  render_pass<span class="op">.</span>set_bind_group(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb9-16"><a></a>  render_pass<span class="op">.</span>draw_indexed()<span class="op">;</span></span>
+<span id="cb9-17"><a></a><span class="op">}</span></span>
+<span id="cb9-18"><a></a>queue<span class="op">.</span>submit(<span class="pp">vec!</span>[encoder<span class="op">.</span>finish()])<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<aside><div>
+<p>source code: <code>example_cube/src/lib.rs:481</code></p>
+</div></aside></section>
+<section id="renderpass-2" class="slide level2">
+<h2>RenderPass</h2>
+<div class="sourceCode" id="cb10" data-code-line-numbers="3,4,16,18"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb10-1"><a></a><span class="kw">let</span> <span class="kw">mut</span> encoder <span class="op">=</span> device<span class="op">.</span>create_command_encoder(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb10-2"><a></a><span class="op">{</span></span>
+<span id="cb10-3"><a></a>  <span class="co">// force out of scope since render_pass can't live longer than encoder</span></span>
+<span id="cb10-4"><a></a>  <span class="kw">let</span> <span class="kw">mut</span> render_pass <span class="op">=</span> encoder<span class="op">.</span>begin_render_pass(</span>
+<span id="cb10-5"><a></a>    <span class="op">&amp;</span><span class="pp">wgpu::</span>RenderPassDescriptor <span class="op">{</span></span>
+<span id="cb10-6"><a></a>      label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"Render Pass"</span>)<span class="op">,</span></span>
+<span id="cb10-7"><a></a>      color_attachments<span class="op">:</span> <span class="op">...,</span></span>
+<span id="cb10-8"><a></a>      depth_stencil_attachment<span class="op">:</span> <span class="op">...,</span></span>
+<span id="cb10-9"><a></a>      occlusion_query_set<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb10-10"><a></a>      timestamp_writes<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb10-11"><a></a>  <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb10-12"><a></a>  render_pass<span class="op">.</span>set_pipeline(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb10-13"><a></a>  render_pass<span class="op">.</span>set_vertex_buffer(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb10-14"><a></a>  render_pass<span class="op">.</span>set_index_buffer(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb10-15"><a></a>  render_pass<span class="op">.</span>set_bind_group(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb10-16"><a></a>  render_pass<span class="op">.</span>draw_indexed()<span class="op">;</span></span>
+<span id="cb10-17"><a></a><span class="op">}</span></span>
+<span id="cb10-18"><a></a>queue<span class="op">.</span>submit(<span class="pp">vec!</span>[encoder<span class="op">.</span>finish()])<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<aside><div>
+<p>source code: <code>example_cube/src/lib.rs:481</code></p>
+</div></aside></section>
+<section id="renderpass-3" class="slide level2">
+<h2>RenderPass</h2>
+<div class="sourceCode" id="cb11" data-code-line-numbers="12-15"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb11-1"><a></a><span class="kw">let</span> <span class="kw">mut</span> encoder <span class="op">=</span> device<span class="op">.</span>create_command_encoder(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb11-2"><a></a><span class="op">{</span></span>
+<span id="cb11-3"><a></a>  <span class="co">// force out of scope since render_pass can't live longer than encoder</span></span>
+<span id="cb11-4"><a></a>  <span class="kw">let</span> <span class="kw">mut</span> render_pass <span class="op">=</span> encoder<span class="op">.</span>begin_render_pass(</span>
+<span id="cb11-5"><a></a>    <span class="op">&amp;</span><span class="pp">wgpu::</span>RenderPassDescriptor <span class="op">{</span></span>
+<span id="cb11-6"><a></a>      label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"Render Pass"</span>)<span class="op">,</span></span>
+<span id="cb11-7"><a></a>      color_attachments<span class="op">:</span> <span class="op">...,</span></span>
+<span id="cb11-8"><a></a>      depth_stencil_attachment<span class="op">:</span> <span class="op">...,</span></span>
+<span id="cb11-9"><a></a>      occlusion_query_set<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb11-10"><a></a>      timestamp_writes<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb11-11"><a></a>  <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb11-12"><a></a>  render_pass<span class="op">.</span>set_pipeline(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb11-13"><a></a>  render_pass<span class="op">.</span>set_vertex_buffer(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb11-14"><a></a>  render_pass<span class="op">.</span>set_index_buffer(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb11-15"><a></a>  render_pass<span class="op">.</span>set_bind_group(<span class="op">...</span>)<span class="op">;</span></span>
+<span id="cb11-16"><a></a>  render_pass<span class="op">.</span>draw_indexed()<span class="op">;</span></span>
+<span id="cb11-17"><a></a><span class="op">}</span></span>
+<span id="cb11-18"><a></a>queue<span class="op">.</span>submit(<span class="pp">vec!</span>[encoder<span class="op">.</span>finish()])<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<aside><div>
+<p>source code: <code>example_cube/src/lib.rs:481</code></p>
+</div></aside></section>
+<section id="renderpipeline" class="slide level2">
+<h2>RenderPipeline</h2>
+<ul>
+<li>The collection of resources and states.
+<ol type="1">
+<li>Shader</li>
+<li>Buffers (VertexBuffers, UniformBuffers)</li>
+<li>primitive state</li>
+<li>depth_stencil</li>
+<li>other things we don’t care about…</li>
+</ol></li>
+</ul>
+</section>
+<section id="renderpipeline-1" class="slide level2">
+<h2>RenderPipeline</h2>
+<ul>
+<li><p>RenderPipelineLayout</p>
+<pre><code>/// A `PipelineLayout` object describes the available binding groups of a pipeline.
+/// It can be created with [`Device::create_pipeline_layout`].</code></pre></li>
+<li><p>RenderPipeline</p>
+<pre><code>/// A `RenderPipeline` object represents a graphics pipeline and its stages, bindings, vertex
+/// buffers and targets. It can be created with [`Device::create_render_pipeline`].</code></pre></li>
+</ul>
+</section>
+<section id="wgpu-buffers" class="slide level2">
+<h2>Wgpu buffers</h2>
+<ul>
+<li><code>Buffer</code> is GPU-accessible buffer <sup>1</sup>
+<ul>
+<li><code>BufferSlice</code>: wgpu side buffer util used to set range of buffers</li>
+</ul></li>
+<li>It uses <code>BufferInitDescriptor</code> for initialization</li>
+</ul>
+
+<aside><div>
+<p>see <code>example_cube/src/lib.rs:275</code></p>
+</div><ol class="aside-footnotes"><li id="fn2"><p>[<a href="https://gpuweb.github.io/gpuweb/#buffer-interface">WebGPU <code>GPUBuffer</code></a>]</p></li></ol></aside></section>
+<section id="vertexbuffer" class="slide level2">
+<h2>VertexBuffer</h2>
+<p>Create a buffer and init with raw data.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb14-1"><a></a><span class="kw">let</span> vertex_buffer <span class="op">=</span> device<span class="op">.</span>create_buffer_init(</span>
+<span id="cb14-2"><a></a>  <span class="op">&amp;</span><span class="pp">wgpu::util::</span>BufferInitDescriptor <span class="op">{</span></span>
+<span id="cb14-3"><a></a>    label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"Vertex Buffer"</span>)<span class="op">,</span></span>
+<span id="cb14-4"><a></a>    contents<span class="op">:</span> <span class="pp">bytemuck::</span>cast_slice(<span class="op">&amp;</span>vertices)<span class="op">,</span></span>
+<span id="cb14-5"><a></a>    usage<span class="op">:</span> <span class="pp">wgpu::BufferUsages::</span>VERTEX<span class="op">,</span></span>
+<span id="cb14-6"><a></a><span class="op">}</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li><code>contents</code>: plain data</li>
+<li><code>usage</code>: buffer usage</li>
+</ul>
+</section>
+<section id="vertexbuffer-1" class="slide level2">
+<h2>VertexBuffer</h2>
+<p>Set vertex buffer before the draw call in the render pass.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb15-1"><a></a>render_pass<span class="op">.</span>set_vertex_buffer(slot<span class="op">,</span> vertex_buffer<span class="op">.</span>slice(<span class="op">..</span>))<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li><code>slot</code>: index in <code>VertexState::buffers</code>
+<ul>
+<li><div class="sourceCode" id="cb16"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb16-1"><a></a>  <span class="co">// in render_pipeline:</span></span>
+<span id="cb16-2"><a></a>  <span class="pp">wgpu::</span>VertexState <span class="op">{</span></span>
+<span id="cb16-3"><a></a>      module<span class="op">:</span> <span class="op">&amp;</span>shader<span class="op">,</span></span>
+<span id="cb16-4"><a></a>      entry_point<span class="op">:</span> <span class="st">"vs_main"</span><span class="op">,</span></span>
+<span id="cb16-5"><a></a>      buffers<span class="op">:</span> <span class="op">&amp;</span>[<span class="pp">model::ModelVertex::</span>desc()<span class="op">,</span> <span class="pp">InstanceRaw::</span>desc()]<span class="op">,</span></span>
+<span id="cb16-6"><a></a>  <span class="op">},</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
+<li>Layouts and buffers are set separately!</li>
+</ul></li>
+<li><code>BufferSlice</code>: wgpu rust side buffer slice
+<ul>
+<li>easy to use (no starts or offsets)</li>
+</ul></li>
+</ul>
+</section>
+<section id="cont.-1" class="slide level2">
+<h2>Cont.</h2>
+<div class="sourceCode" id="cb17"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb17-1"><a></a><span class="co">// in desc():</span></span>
+<span id="cb17-2"><a></a><span class="pp">wgpu::</span>VertexBufferLayout <span class="op">{</span></span>
+<span id="cb17-3"><a></a>    array_stride<span class="op">:</span> <span class="pp">mem::size_of::</span><span class="op">&lt;</span>ModelVertex<span class="op">&gt;</span>() <span class="kw">as</span> <span class="pp">wgpu::</span>BufferAddress<span class="op">,</span></span>
+<span id="cb17-4"><a></a>    step_mode<span class="op">:</span> <span class="pp">wgpu::VertexStepMode::</span>Vertex<span class="op">,</span></span>
+<span id="cb17-5"><a></a>    attributes<span class="op">:</span> <span class="op">&amp;</span>[</span>
+<span id="cb17-6"><a></a>        <span class="pp">wgpu::</span>VertexAttribute <span class="op">{</span></span>
+<span id="cb17-7"><a></a>            format<span class="op">:</span> <span class="pp">wgpu::VertexFormat::</span>Float32x3<span class="op">,</span></span>
+<span id="cb17-8"><a></a>            offset<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb17-9"><a></a>            shader_location<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb17-10"><a></a>        <span class="op">},</span></span>
+<span id="cb17-11"><a></a>        <span class="pp">wgpu::</span>VertexAttribute <span class="op">{</span></span>
+<span id="cb17-12"><a></a>            format<span class="op">:</span> <span class="pp">wgpu::VertexFormat::</span>Float32x2<span class="op">,</span></span>
+<span id="cb17-13"><a></a>            offset<span class="op">:</span> <span class="pp">mem::size_of::</span><span class="op">&lt;</span>[<span class="dt">f32</span><span class="op">;</span> <span class="dv">3</span>]<span class="op">&gt;</span>() <span class="kw">as</span> <span class="pp">wgpu::</span>BufferAddress<span class="op">,</span></span>
+<span id="cb17-14"><a></a>            shader_location<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb17-15"><a></a>        <span class="op">},</span></span>
+<span id="cb17-16"><a></a>        <span class="pp">wgpu::</span>VertexAttribute <span class="op">{</span></span>
+<span id="cb17-17"><a></a>            format<span class="op">:</span> <span class="pp">wgpu::VertexFormat::</span>Float32x3<span class="op">,</span></span>
+<span id="cb17-18"><a></a>            offset<span class="op">:</span> <span class="pp">mem::size_of::</span><span class="op">&lt;</span>[<span class="dt">f32</span><span class="op">;</span> <span class="dv">5</span>]<span class="op">&gt;</span>() <span class="kw">as</span> <span class="pp">wgpu::</span>BufferAddress<span class="op">,</span></span>
+<span id="cb17-19"><a></a>            shader_location<span class="op">:</span> <span class="dv">2</span><span class="op">,</span></span>
+<span id="cb17-20"><a></a>        <span class="op">},</span></span>
+<span id="cb17-21"><a></a>    ]<span class="op">,</span></span>
+<span id="cb17-22"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="uniform-buffers" class="slide level2">
+<h2>Uniform Buffers</h2>
+<ul>
+<li>Data that is uniform in the same render pass
+<ul>
+<li>read-only in shader</li>
+<li>can be updated (frequently) in client code</li>
+</ul>
+<div class="sourceCode" id="cb18"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb18-1"><a></a>usage<span class="op">:</span> <span class="pp">wgpu::BufferUsages::</span>UNIFORM <span class="op">|</span> <span class="pp">wgpu::BufferUsages::</span>COPY_DST<span class="op">,</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
+<li>Comparing to <code>OpenGL</code>: <code>{.c++}   glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);</code></li>
+</ul>
+</section>
+<section id="cont.-2" class="slide level2">
+<h2>Cont.</h2>
+<ul>
+<li>BindgroupLayout
+<ul>
+<li>defines how shader treats the buffer</li>
+</ul>
+<div class="sourceCode" id="cb19"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb19-1"><a></a><span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
+<span id="cb19-2"><a></a>  binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb19-3"><a></a>  visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>VERTEX<span class="op">,</span></span>
+<span id="cb19-4"><a></a>  ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Buffer <span class="op">{</span></span>
+<span id="cb19-5"><a></a>      ty<span class="op">:</span> <span class="pp">wgpu::BufferBindingType::</span>Uniform<span class="op">,</span></span>
+<span id="cb19-6"><a></a>      has_dynamic_offset<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
+<span id="cb19-7"><a></a>      min_binding_size<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb19-8"><a></a>  <span class="op">},</span></span>
+<span id="cb19-9"><a></a>  count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb19-10"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
+</ul>
+
+<aside><div>
+<p>source code: <code>example_cube/src/lib.rs:282</code></p>
+</div></aside></section>
+<section id="textures" class="slide level2">
+<h2>Textures</h2>
+<ul>
+<li>BindgroupLayout
+<ul>
+<li>the wgpu shader treats Buffers and Textures in the same way – <code>bindgroup</code></li>
+</ul></li>
+<li><code>OpenGL</code>: treats <code>sampler*d</code> as a uniform
+<ol type="1">
+<li>enable texture unit</li>
+<li>bind texture</li>
+<li>call <code>glUniform*</code> to set sampler in the shader</li>
+</ol></li>
+<li><code>WGPU</code>: set bindgroup where <code>TextureView</code> and <code>Sampler</code> are specifies saperately</li>
+</ul>
+</section>
+<section id="cont.-3" class="slide level2">
+<h2>Cont.</h2>
+<div class="sourceCode" id="cb20"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb20-1"><a></a><span class="pp">wgpu::</span>BindGroupLayoutDescriptor <span class="op">{</span></span>
+<span id="cb20-2"><a></a>    entries<span class="op">:</span> <span class="op">&amp;</span>[</span>
+<span id="cb20-3"><a></a>        <span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
+<span id="cb20-4"><a></a>            binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb20-5"><a></a>            visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>FRAGMENT<span class="op">,</span></span>
+<span id="cb20-6"><a></a>            ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Texture <span class="op">{</span></span>
+<span id="cb20-7"><a></a>                multisampled<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
+<span id="cb20-8"><a></a>                view_dimension<span class="op">:</span> <span class="pp">wgpu::TextureViewDimension::</span>D2<span class="op">,</span></span>
+<span id="cb20-9"><a></a>                sample_type<span class="op">:</span> <span class="pp">wgpu::TextureSampleType::</span>Float <span class="op">{</span> filterable<span class="op">:</span> <span class="cn">true</span> <span class="op">},</span></span>
+<span id="cb20-10"><a></a>            <span class="op">},</span></span>
+<span id="cb20-11"><a></a>            count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb20-12"><a></a>        <span class="op">},</span></span>
+<span id="cb20-13"><a></a>        <span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
+<span id="cb20-14"><a></a>            binding<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb20-15"><a></a>            visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>FRAGMENT<span class="op">,</span></span>
+<span id="cb20-16"><a></a>            ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Sampler(<span class="pp">wgpu::SamplerBindingType::</span>Filtering)<span class="op">,</span></span>
+<span id="cb20-17"><a></a>            count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb20-18"><a></a>        <span class="op">},</span></span>
+<span id="cb20-19"><a></a>    ]<span class="op">,</span></span>
+<span id="cb20-20"><a></a>    label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"texture_bind_group_layout"</span>)<span class="op">,</span></span>
+<span id="cb20-21"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="cont.-4" class="slide level2">
+<h2>Cont.</h2>
+<div class="sourceCode" id="cb21"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb21-1"><a></a><span class="kw">let</span> diffuse_bind_group <span class="op">=</span> device<span class="op">.</span>create_bind_group(</span>
+<span id="cb21-2"><a></a>    <span class="op">&amp;</span><span class="pp">wgpu::</span>BindGroupDescriptor <span class="op">{</span></span>
+<span id="cb21-3"><a></a>        layout<span class="op">:</span> <span class="op">&amp;</span>texture_bind_group_layout<span class="op">,</span></span>
+<span id="cb21-4"><a></a>        entries<span class="op">:</span> <span class="op">&amp;</span>[</span>
+<span id="cb21-5"><a></a>            <span class="pp">wgpu::</span>BindGroupEntry <span class="op">{</span></span>
+<span id="cb21-6"><a></a>                binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb21-7"><a></a>                resource<span class="op">:</span> <span class="pp">wgpu::BindingResource::</span>TextureView(</span>
+<span id="cb21-8"><a></a>                    <span class="op">&amp;</span>diffuse_texture<span class="op">.</span>view)<span class="op">,</span></span>
+<span id="cb21-9"><a></a>            <span class="op">},</span></span>
+<span id="cb21-10"><a></a>            <span class="pp">wgpu::</span>BindGroupEntry <span class="op">{</span></span>
+<span id="cb21-11"><a></a>                binding<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb21-12"><a></a>                resource<span class="op">:</span> <span class="pp">wgpu::BindingResource::</span>Sampler(</span>
+<span id="cb21-13"><a></a>                    <span class="op">&amp;</span>diffuse_texture<span class="op">.</span>sampler)<span class="op">,</span></span>
+<span id="cb21-14"><a></a>            <span class="op">},</span></span>
+<span id="cb21-15"><a></a>        ]<span class="op">,</span></span>
+<span id="cb21-16"><a></a>        label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"diffuse_bind_group"</span>)<span class="op">,</span></span>
+<span id="cb21-17"><a></a><span class="op">}</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<aside><div>
+<p>source code: <code>example_cube/src/lib.rs:208,233</code></p>
+</div></aside></section>
+<section id="bindgroup" class="slide level2">
+<h2>BindGroup</h2>
+<ul>
+<li><p>BindGroupLayout</p>
+<pre><code>/// Handle to a binding group layout.
+///
+/// A `BindGroupLayout` is a handle to the GPU-side layout of a binding group. It can be used to
+/// create a [`BindGroupDescriptor`] object, which in turn can be used to create a [`BindGroup`]
+/// object with [`Device::create_bind_group`]. A series of `BindGroupLayout`s can also be used to
+/// create a [`PipelineLayoutDescriptor`], which can be used to create a [`PipelineLayout`].
+///
+/// It can be created with [`Device::create_bind_group_layout`].
+///
+/// Corresponds to [WebGPU `GPUBindGroupLayout`](
+/// https://gpuweb.github.io/gpuweb/#gpubindgrouplayout).</code></pre></li>
+</ul>
+</section>
+<section id="bindgroup-1" class="slide level2">
+<h2>BindGroup</h2>
+<ul>
+<li><p>BindGroup</p>
+<pre><code>/// Handle to a binding group.
+///
+/// A `BindGroup` represents the set of resources bound to the bindings described by a
+/// [`BindGroupLayout`]. It can be created with [`Device::create_bind_group`]. A `BindGroup` can
+/// be bound to a particular [`RenderPass`] with [`RenderPass::set_bind_group`], or to a
+/// [`ComputePass`] with [`ComputePass::set_bind_group`].
+///
+/// Corresponds to [WebGPU `GPUBindGroup`](https://gpuweb.github.io/gpuweb/#gpubindgroup).</code></pre></li>
+</ul>
+</section>
+<section id="bindgroup-in-wgsl" class="slide level2">
+<h2>BindGroup in WGSL</h2>
+<ul>
+<li>Uniform</li>
+</ul>
+<div class="sourceCode" id="cb24"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb24-1"><a></a>struct CameraUniform {</span>
+<span id="cb24-2"><a></a>    view_proj: mat4x4&lt;f32&gt;,</span>
+<span id="cb24-3"><a></a>};</span>
+<span id="cb24-4"><a></a></span>
+<span id="cb24-5"><a></a>@group(1) @binding(0)</span>
+<span id="cb24-6"><a></a>var&lt;uniform&gt; camera: CameraUniform;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li>Texture</li>
+</ul>
+<div class="sourceCode" id="cb25"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb25-1"><a></a>@group(0) @binding(0)</span>
+<span id="cb25-2"><a></a>var t_diffuse: texture_2d&lt;f32&gt;;</span>
+<span id="cb25-3"><a></a>@group(0) @binding(1)</span>
+<span id="cb25-4"><a></a>var s_diffuse: sampler;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section></section>
+<section>
+<section id="webgpu-shading-language-wgsl-basics" class="title-slide slide level1 center">
+<h1>WebGPU Shading Language (WGSL) basics</h1>
+
+</section>
+<section id="yes-you-dont-need-to-learn-wgsl" class="slide level2">
+<h2>Yes, you don’t need to learn WGSL!</h2>
+<p>Thanks to <a href="https://github.com/gfx-rs/wgpu/tree/trunk/naga">Naga</a></p>
+
+<img data-src="assets/naga-support.png" class="quarto-figure quarto-figure-center r-stretch" style="width:80.0%"><div class="fragment">
+<ul>
+<li><del>You only need to learn WGSL</del></li>
+</ul>
+</div>
+</section>
+<section id="support-languages" class="slide level2">
+<h2>Support languages</h2>
+<ul>
+<li>SPIR-V first class support</li>
+<li>HLSL good support</li>
+<li>GLSL has many limitations</li>
+</ul>
+<div class="sourceCode" id="cb26"><pre class="sourceCode numberSource glsl number-lines code-with-copy"><code class="sourceCode glsl"><span id="cb26-1"><a></a><span class="kw">uniform</span> <span class="dt">sampler2D</span> mySampler<span class="op">;</span></span>
+<span id="cb26-2"><a></a><span class="kw">uniform</span> <span class="dt">texture2D</span> myTexture<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><br></p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb27-1"><a></a>@group(0) @binding(0) var mySampler: sampler;</span>
+<span id="cb27-2"><a></a>@group(0) @binding(1) var myTexture: texture_2d&lt;f32&gt;;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<aside><div>
+<p>current support: https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points</p>
+</div></aside></section>
+<section id="wgsl-simple-example" class="slide level2">
+<h2>WGSL simple example <sup>1</sup></h2>
+<div class="sourceCode" id="cb28"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb28-1"><a></a>struct VertexOutput {</span>
+<span id="cb28-2"><a></a>    @builtin(position) clip_position: vec4&lt;f32&gt;,</span>
+<span id="cb28-3"><a></a>};</span>
+<span id="cb28-4"><a></a></span>
+<span id="cb28-5"><a></a>@vertex</span>
+<span id="cb28-6"><a></a>fn vs_main(</span>
+<span id="cb28-7"><a></a>    @builtin(vertex_index) in_vertex_index: u32,</span>
+<span id="cb28-8"><a></a>) -&gt; VertexOutput {</span>
+<span id="cb28-9"><a></a>    var out: VertexOutput;</span>
+<span id="cb28-10"><a></a>    let x = f32(1 - i32(in_vertex_index)) * 0.5;</span>
+<span id="cb28-11"><a></a>    let y = f32(i32(in_vertex_index &amp; 1u) * 2 - 1) * 0.5;</span>
+<span id="cb28-12"><a></a>    out.clip_position = vec4&lt;f32&gt;(x, y, 0.0, 1.0);</span>
+<span id="cb28-13"><a></a>    return out;</span>
+<span id="cb28-14"><a></a>}</span>
+<span id="cb28-15"><a></a></span>
+<span id="cb28-16"><a></a>@fragment</span>
+<span id="cb28-17"><a></a>fn fs_main(in: VertexOutput) -&gt; @location(0) vec4&lt;f32&gt; {</span>
+<span id="cb28-18"><a></a>    return vec4&lt;f32&gt;(0.3, 0.2, 0.1, 1.0);</span>
+<span id="cb28-19"><a></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<aside><ol class="aside-footnotes"><li id="fn3"><p><a href="https://github.com/sotrh/learn-wgpu/blob/master/code/beginner/tutorial3-pipeline/src/shader.wgsl">learn-wgpu: tutorial3</a></p></li></ol></aside></section></section>
+<section>
+<section id="compute-shader-in-wgpu" class="title-slide slide level1 center">
+<h1>Compute Shader in WGPU</h1>
+
+</section>
+<section id="structure-of-compute-pass" class="slide level2">
+<h2>Structure of Compute Pass</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class=""><p></p>
+<div>
+<svg aria-roledescription="flowchart-v2" role="graphics-document document" viewbox="-8 -8 648.1640625 428" style="; display: block; margin: auto auto auto auto" xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="960" id="mermaid-figure-2" height="480">
+<style>#mermaid-figure-2{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#333;}#mermaid-figure-2 .error-icon{fill:#552222;}#mermaid-figure-2 .error-text{fill:#552222;stroke:#552222;}#mermaid-figure-2 .edge-thickness-normal{stroke-width:2px;}#mermaid-figure-2 .edge-thickness-thick{stroke-width:3.5px;}#mermaid-figure-2 .edge-pattern-solid{stroke-dasharray:0;}#mermaid-figure-2 .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-figure-2 .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-figure-2 .marker{fill:#333333;stroke:#333333;}#mermaid-figure-2 .marker.cross{stroke:#333333;}#mermaid-figure-2 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-figure-2 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#333;}#mermaid-figure-2 .cluster-label text{fill:#333;}#mermaid-figure-2 .cluster-label span,#mermaid-figure-2 p{color:#333;}#mermaid-figure-2 .label text,#mermaid-figure-2 span,#mermaid-figure-2 p{fill:#333;color:#333;}#mermaid-figure-2 .node rect,#mermaid-figure-2 .node circle,#mermaid-figure-2 .node ellipse,#mermaid-figure-2 .node polygon,#mermaid-figure-2 .node path{fill:#ECECFF;stroke:#9370DB;stroke-width:1px;}#mermaid-figure-2 .flowchart-label text{text-anchor:middle;}#mermaid-figure-2 .node .label{text-align:center;}#mermaid-figure-2 .node.clickable{cursor:pointer;}#mermaid-figure-2 .arrowheadPath{fill:#333333;}#mermaid-figure-2 .edgePath .path{stroke:#333333;stroke-width:2.0px;}#mermaid-figure-2 .flowchart-link{stroke:#333333;fill:none;}#mermaid-figure-2 .edgeLabel{background-color:#e8e8e8;text-align:center;}#mermaid-figure-2 .edgeLabel rect{opacity:0.5;background-color:#e8e8e8;fill:#e8e8e8;}#mermaid-figure-2 .cluster rect{fill:#ffffde;stroke:#aaaa33;stroke-width:1px;}#mermaid-figure-2 .cluster text{fill:#333;}#mermaid-figure-2 .cluster span,#mermaid-figure-2 p{color:#333;}#mermaid-figure-2 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(80, 100%, 96.2745098039%);border:1px solid #aaaa33;border-radius:2px;pointer-events:none;z-index:100;}#mermaid-figure-2 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#333;}#mermaid-figure-2 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style>
+<g><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="10" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerheight="12" markerwidth="12" markerunits="userSpaceOnUse" refy="5" refx="0" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="11" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5" refx="-1" viewbox="0 0 10 10" class="marker flowchart" id="flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="12" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerheight="11" markerwidth="11" markerunits="userSpaceOnUse" refy="5.2" refx="-1" viewbox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"><g id="Bindgroups" class="cluster default flowchart-label"><rect height="309" width="351.3046875" y="0" x="0" ry="0" rx="0" style=""></rect><g transform="translate(136.52734375, 0)" class="cluster-label"><foreignobject height="19" width="78.25">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Bindgroups</span>
+</div>
+</foreignobject></g></g></g><g class="edgePaths"><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Buffers LE-BindGroupLayout" id="L-Buffers-BindGroupLayout-0" d="M109.53125,55.57086072465984L121.06119791666667,60.3090506038832C132.59114583333334,65.04724048310656,155.65104166666666,74.52362024155327,174.00452628968253,83.4284767874433C192.3580109126984,92.33333333333333,206.00508432539684,100.66666666666667,212.82862103174602,104.83333333333333L219.65215773809524,109"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Buffers LE-BindGroup" id="L-Buffers-BindGroup-0" d="M63.35463169642857,59L60.1308128720238,63.166666666666664C56.906994047619044,67.33333333333333,50.45935639880952,75.66666666666667,47.23553757440476,86.83333333333333C44.01171875,98,44.01171875,112,44.01171875,126C44.01171875,140,44.01171875,154,50.892578125,166.31457825138014C57.7734375,178.6291565027603,71.53515625,189.2583130055206,78.416015625,194.57289125690076L85.296875,199.8874695082809"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Texture LE-BindGroupLayout" id="L-Texture-BindGroupLayout-0" d="M215.69345238095238,59L220.99324156746033,63.166666666666664C226.29303075396828,67.33333333333333,236.89260912698413,75.66666666666667,242.19239831349205,84C247.4921875,92.33333333333333,247.4921875,100.66666666666667,247.4921875,104.83333333333333L247.4921875,109"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Texture LE-BindGroup" id="L-Texture-BindGroup-0" d="M166.84375,59L160.17057291666666,63.166666666666664C153.49739583333334,67.33333333333333,140.15104166666666,75.66666666666667,133.47786458333334,86.83333333333333C126.8046875,98,126.8046875,112,126.8046875,126C126.8046875,140,126.8046875,154,127.3061281028369,165.16666666666666C127.80756870567376,176.33333333333334,128.81044991134752,184.66666666666666,129.3118905141844,188.83333333333334L129.81333111702128,193"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-BindGroupLayout LE-BindGroup" id="L-BindGroupLayout-BindGroup-0" d="M247.4921875,143L247.4921875,147.16666666666666C247.4921875,151.33333333333334,247.4921875,159.66666666666666,237.12369791666666,170.34811191570347C226.75520833333334,181.02955716474028,206.01822916666666,194.0591143294806,195.64973958333334,200.57389291185072L185.28125,207.08867149422088"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-BindGroupLayouts LE-PipelineLayout" id="L-BindGroupLayouts-PipelineLayout-0" d="M458.359375,59L458.359375,63.166666666666664C458.359375,67.33333333333333,458.359375,75.66666666666667,458.359375,84C458.359375,92.33333333333333,458.359375,100.66666666666667,458.359375,104.83333333333333L458.359375,109"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-BindGroup LE-ComputePass" id="L-BindGroup-ComputePass-0" d="M135.2890625,284L135.2890625,288.1666666666667C135.2890625,292.3333333333333,135.2890625,300.6666666666667,135.2890625,310.5833333333333C135.2890625,320.5,135.2890625,332,165.681640625,344.3624684390316C196.07421875,356.72493687806326,256.859375,369.9498737561266,287.251953125,376.5623421951582L317.64453125,383.17481063418984"></path><path style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-BindGroupLayouts LE-BindGroupLayout" id="L-BindGroupLayouts-BindGroupLayout-0" d="M394.0180431547619,59L378.24810887896825,63.166666666666664C362.47817460317464,67.33333333333333,330.9383060515873,75.66666666666667,310.0189422123016,84C289.09957837301585,92.33333333333333,278.80071924603175,100.66666666666667,273.6512896825397,104.83333333333333L268.5018601190476,109"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-PipelineLayout LE-ComputePipeline" id="L-PipelineLayout-ComputePipeline-0" d="M458.359375,143L458.359375,147.16666666666666C458.359375,151.33333333333334,458.359375,159.66666666666666,468.4093990100473,172.75C478.4594230200946,185.83333333333334,498.5594710401892,203.66666666666666,508.6094950502365,212.58333333333334L518.6595190602837,221.5"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Shader LE-ComputePipeline" id="L-Shader-ComputePipeline-0" d="M600.3125,143L600.3125,147.16666666666666C600.3125,151.33333333333334,600.3125,159.66666666666666,592.4086417700945,172.75C584.5047835401891,185.83333333333334,568.6970670803782,203.66666666666666,560.7932088504728,212.58333333333334L552.8893506205674,221.5"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-ComputePipeline LE-ComputePass" id="L-ComputePipeline-ComputePass-0" d="M537.8203125,255.5L537.8203125,264.4166666666667C537.8203125,273.3333333333333,537.8203125,291.1666666666667,537.8203125,305.8333333333333C537.8203125,320.5,537.8203125,332,519.2415364583334,343.520007381059C500.6627604166667,355.0400147621179,463.5052083333333,366.58002952423584,444.9264322916667,372.3500369052947L426.34765625,378.1200442863537"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g transform="translate(135.2890625, 343.5)" class="edgeLabel"><g transform="translate(-50.78125, -9.5)" class="label"><foreignobject height="19" width="101.5625">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel">set_bindgroup</span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignobject height="0" width="0">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel"></span>
+</div>
+</foreignobject></g></g><g transform="translate(537.8203125, 343.5)" class="edgeLabel"><g transform="translate(-43.90625, -9.5)" class="label"><foreignobject height="19" width="87.8125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="edgeLabel">set_pipeline</span>
+</div>
+</foreignobject></g></g></g><g class="nodes"><g transform="translate(135.2890625, 238.5)" id="flowchart-BindGroup-42" class="node default default flowchart-label"><rect height="91" width="99.984375" y="-45.5" x="-49.9921875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-42.4921875, -38)" style="" class="label"><rect></rect><foreignobject height="76" width="84.984375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Bindgroup 0<br>Bindgroup 1<br>Bindgroup 2<br>…</span>
+</div>
+</foreignobject></g></g><g transform="translate(247.4921875, 126)" id="flowchart-BindGroupLayout-44" class="node default default flowchart-label"><rect height="34" width="137.625" y="-17" x="-68.8125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-61.3125, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="122.625">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">BindGroupLayout</span>
+</div>
+</foreignobject></g></g><g transform="translate(76.5078125, 42)" id="flowchart-Buffers-43" class="node default default flowchart-label"><rect height="34" width="66.046875" y="-17" x="-33.0234375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-25.5234375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="51.046875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Buffers</span>
+</div>
+</foreignobject></g></g><g transform="translate(194.0703125, 42)" id="flowchart-Texture-46" class="node default default flowchart-label"><rect height="34" width="69.078125" y="-17" x="-34.5390625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-27.0390625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="54.078125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Texture</span>
+</div>
+</foreignobject></g></g><g transform="translate(458.359375, 42)" id="flowchart-BindGroupLayouts-51" class="node default default flowchart-label"><rect height="34" width="144.109375" y="-17" x="-72.0546875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-64.5546875, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="129.109375">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">BindGroupLayouts</span>
+</div>
+</foreignobject></g></g><g transform="translate(458.359375, 126)" id="flowchart-PipelineLayout-52" class="node default default flowchart-label"><rect height="34" width="120.203125" y="-17" x="-60.1015625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-52.6015625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="105.203125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">PipelineLayout</span>
+</div>
+</foreignobject></g></g><g transform="translate(371.99609375, 395)" id="flowchart-ComputePass-54" class="node default default flowchart-label"><rect height="34" width="108.703125" y="-17" x="-54.3515625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-46.8515625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="93.703125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">ComputePass</span>
+</div>
+</foreignobject></g></g><g transform="translate(537.8203125, 238.5)" id="flowchart-ComputePipeline-58" class="node default default flowchart-label"><rect height="34" width="136.296875" y="-17" x="-68.1484375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-60.6484375, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="121.296875">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">ComputePipeline</span>
+</div>
+</foreignobject></g></g><g transform="translate(600.3125, 126)" id="flowchart-Shader-59" class="node default default flowchart-label"><rect height="34" width="63.703125" y="-17" x="-31.8515625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-24.3515625, -9.5)" style="" class="label"><rect></rect><foreignobject height="19" width="48.703125">
+<div style="display: inline-block; white-space: nowrap;" data-xmlns="http://www.w3.org/1999/xhtml">
+<span class="nodeLabel">Shader</span>
+</div>
+</foreignobject></g></g></g></g></g>
+</svg>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="compute-pass" class="slide level2">
+<h2>Compute Pass</h2>
+<ul>
+<li>Number of cells to run, the (x,y,z) size of item being processed</li>
+</ul>
+<div class="sourceCode" id="cb29"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb29-1"><a></a>compute_pass<span class="op">.</span>dispatch_workgroups(numbers<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">u32</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">1</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<ul>
+<li>in each cell:</li>
+</ul>
+<div class="sourceCode" id="cb30" data-code-line-numbers="2"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb30-1"><a></a>@compute</span>
+<span id="cb30-2"><a></a>@workgroup_size(2, 1, 1)</span>
+<span id="cb30-3"><a></a>fn main(</span>
+<span id="cb30-4"><a></a>  @builtin(local_invocation_id) lid: vec3&lt;u32&gt;, </span>
+<span id="cb30-5"><a></a>  @builtin(workgroup_id) wid: vec3&lt;u32&gt;</span>
+<span id="cb30-6"><a></a>  ) {</span>
+<span id="cb30-7"><a></a>    if lid.x == 0u {</span>
+<span id="cb30-8"><a></a>        a[wid.x] += 1;</span>
+<span id="cb30-9"><a></a>    } else if lid.x == 1u {</span>
+<span id="cb30-10"><a></a>        b[wid.x] += 1;</span>
+<span id="cb30-11"><a></a>    }</span>
+<span id="cb30-12"><a></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="compute-shader-in-wgsl" class="slide level2">
+<h2>Compute Shader in WGSL</h2>
+<h3 id="workgroups">Workgroups</h3>
+<div class="sourceCode" id="cb31"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb31-1"><a></a><span class="op">@</span>builtin(workgroup_id)            workgroup_id <span class="op">:</span> vec3<span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;,</span></span>
+<span id="cb31-2"><a></a><span class="op">@</span>builtin(local_invocation_id)     local_invocation_id <span class="op">:</span> vec3<span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;,</span></span>
+<span id="cb31-3"><a></a><span class="op">@</span>builtin(global_invocation_id)    global_invocation_id <span class="op">:</span> vec3<span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;,</span></span>
+<span id="cb31-4"><a></a><span class="op">@</span>builtin(local_invocation_index)  local_invocation_index<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span></span>
+<span id="cb31-5"><a></a><span class="op">@</span>builtin(num_workgroups)          num_workgroups<span class="op">:</span> vec3<span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<h3 id="storage-buffers">Storage buffers</h3>
+<div class="sourceCode" id="cb32"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb32-1"><a></a><span class="op">@</span>group(<span class="dv">0</span>) <span class="op">@</span>binding(<span class="dv">0</span>) var<span class="op">&lt;</span>storage<span class="op">,</span> read_write<span class="op">&gt;</span> v_indices<span class="op">:</span> array<span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;;</span></span>
+<span id="cb32-2"><a></a><span class="op">@</span>group(<span class="dv">1</span>) <span class="op">@</span>binding(<span class="dv">0</span>) var texture<span class="op">:</span> texture_storage_2d<span class="op">&lt;</span>rgba8unorm<span class="op">,</span> write<span class="op">&gt;;</span></span>
+<span id="cb32-3"><a></a><span class="co">// in fn main():</span></span>
+<span id="cb32-4"><a></a>textureStore(texture<span class="op">,</span> location<span class="op">,</span> value)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<aside><div>
+<p><a href="https://github.com/gfx-rs/wgpu/tree/v0.18/examples/hello-workgroups">wgpu v0.18 workgroup examples</a></p>
+<p><a href="https://webgpufundamentals.org/webgpu/lessons/webgpu-compute-shaders.html">WebGPU Compute Shader Basics</a></p>
+</div></aside></section></section>
+<section id="demos" class="title-slide slide level1 center">
+<h1>Demos</h1>
+
+</section>
+
+<section id="qa" class="title-slide slide level1 center">
+<h1>Q&amp;A</h1>
+
+</section>
+
+<section id="thank-you" class="title-slide slide level1 center">
+<h1>Thank you!</h1>
 
 <div class="quarto-auto-generated-content">
 <div class="footer footer-default">
@@ -349,6 +1392,8 @@ Ink Zhang
 </div>
 </div>
 </section>
+
+
     </div>
   </div>
 

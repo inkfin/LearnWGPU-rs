@@ -2,4 +2,4 @@
 title: "About"
 ---
 
-About this site
+Hi, this is a site where I store my tutorials and slides; you can try out the demos in demo sections and see the source code in the git repository.
