@@ -659,15 +659,65 @@ WGPU is excellent!
 
 . . .
 
-Except for WGSL...
+Except for WGSL... [link](https://github.com/gpuweb/gpuweb/issues/566)
 
 . . .
 
-![](assets/wgsl-is-terrible.png)
+![](assets/wgsl-is-terrible.png){width=80% fig-align="center"}
 
+
+
+---
+
+Take a look at 'the most creative language ever
+
+
+::: {#fig layout-ncol=2}
+![](assets/terrible-type-alias.png)
+
+![](assets/terrible-loop.png)
+:::
+
+---
+
+```wgsl
+loop() {
+  break if (i >= 4);
+
+  continuing {
+    i = i + 1;
+  }
+}
+```
 . . .
 
-It takes times
+Now we have syntax like 
+
+::: {.columns}
+
+::: {.column}
+
+```wgsl
+while condition{
+  //...
+}
+```
+
+:::
+
+::: {.column}
+
+```wgsl
+for (;;;) {
+  // ...
+}
+```
+
+:::
+
+:::
+
+Good things never come easy
 
 
 ## Yes, you don't need to learn WGSL!
@@ -700,6 +750,45 @@ Thanks to [Naga](https://github.com/gfx-rs/wgpu/tree/trunk/naga)
 :::
 
 
+## WGSL types {.smaller}
+
+:::{.columns}
+
+:::{.column}
+
+- [basic types](https://google.github.io/tour-of-wgsl/types/basic-scalars/)
+  - `i32`, `u32`, `f32`, `bool`
+- [builtins]()
+  - `@builtin(vertex_index)`, `@builtin(position)`
+- [vectors](https://google.github.io/tour-of-wgsl/types/vectors/)
+  - `vec2f === vec2<f32>`
+  - `vec3u === vec3<u32>`
+  - `vec4i === vec4<i32>`
+  - [constructors](https://google.github.io/tour-of-wgsl/types/vectors/constructors/)
+- [matrices](https://google.github.io/tour-of-wgsl/types/matrices/)
+  - `mat2x3<f32> === mat2x3f` (row x column)
+  - column major
+  - [constructors](https://google.github.io/tour-of-wgsl/types/matrices/constructors/)
+
+:::
+
+:::{.column}
+
+- [fixed-size arrays](https://google.github.io/tour-of-wgsl/types/arrays/fixed-size-arrays/)
+  - `array<f32,5>`, c must be const-declared.
+- [runtime-sized arrays](https://google.github.io/tour-of-wgsl/types/arrays/runtime-sized-arrays/)
+  - can only be used with storage buffer resources.
+  - `@group(0) @binding(0) var<storage> weights: array<f32>;`
+  - Use the `arrayLength()` builtin function to get the element count.
+- [Structures](https://google.github.io/tour-of-wgsl/types/structures/)
+- [**Automic Types**](https://google.github.io/tour-of-wgsl/types/atomics/atomic-types/)
+- [Pointers (What?)](https://google.github.io/tour-of-wgsl/types/pointers/)
+
+
+
+:::
+
+:::
 
 ## WGSL simple example ^[[learn-wgpu: tutorial3](https://github.com/sotrh/learn-wgpu/blob/master/code/beginner/tutorial3-pipeline/src/shader.wgsl)]
 
@@ -724,6 +813,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(0.3, 0.2, 0.1, 1.0);
 }
 ```
+
+## WGSL online demos
+
+[online tutorial & playground](https://google.github.io/tour-of-wgsl/)
+
+[online editor](https://www.wgsl.dev/editor?example=triangle&canvas=webgpu)
+
 
 # Compute Shader in WGPU
 
@@ -782,9 +878,10 @@ fn main(
 }
 ```
 
-## Compute Shader in WGSL
+# Compute Shader in WGSL
 
-### Workgroups
+
+## Workgroups builtins
 
 ```rust
 @builtin(workgroup_id)            workgroup_id : vec3<u32>,
@@ -794,7 +891,60 @@ fn main(
 @builtin(num_workgroups)          num_workgroups: vec3<u32>
 ```
 
-### Storage buffers
+
+## Workgroups shared memories {.scrollable}
+
+[tour-of-wgsl](https://google.github.io/tour-of-wgsl/variables/var-workgroup/)
+
+- like shared memories in OpenGL
+- barriers: `workgroupBarrier()`
+- Unlike OpenGL, wgpu encourages computation done within one workgroup. It limits access by using the _address space_ [`var<workgroup>`].
+
+```wgsl
+// Create zero-initialized workgroup shared data
+const workgroup_len : u32 = 8;
+var<workgroup> workgroup_data: array<u32, workgroup_len>;
+
+@group(0) @binding(0) var<storage, read> input_data: array<u32>;
+@group(0) @binding(1) var<storage, read_write> output_data: u32;
+
+// Our workgroup will execute workgroup_len invocations of the shader
+@compute @workgroup_size(workgroup_len, 1, 1)
+fn computeMain(@builtin(local_invocation_id) local_id: vec3<u32>) {
+  // Each invocation will populate the shared workgroup data from the input data
+  workgroup_data[local_id.x] = input_data[local_id.x];
+
+  // Wait for each invocation to populate their region of local data
+  workgroupBarrier();
+
+  // Get the sum of the elements in the array
+  // Input Data:    [0,  1,  2,  3,   4,  5,  6,  7]
+  // Loop Pass 1:   [1,  5,  9,  13,  4,  5,  6,  7]
+  // Loop Pass 2:   [6,  22, 9,  13,  4,  5,  6,  7]
+  for (var current_size = workgroup_len / 2; current_size >= 1; current_size /= 2) {
+    var sum: u32 = 0;
+    if (local_id.x < current_size) {
+      // Read current values from workgroup_data
+      sum = workgroup_data[local_id.x * 2] + workgroup_data[local_id.x * 2 + 1];
+   	}
+    // Wait until all invocations have finished reading from workgroup_data, and have calculated their respective sums
+    workgroupBarrier();
+    if (local_id.x < current_size) {
+      workgroup_data[local_id.x] = sum;
+    }
+    // Wait for each invocation to finish one iteration of the loop, and to have finished writing to workgroup_data
+    workgroupBarrier();
+  }
+
+  // Write the sum to the output
+  if (local_id.x == 0) {
+    output_data = workgroup_data[0];
+  }
+}
+```
+
+
+## Storage buffers
 ```rust
 @group(0) @binding(0) var<storage, read_write> v_indices: array<u32>;
 @group(1) @binding(0) var texture: texture_storage_2d<rgba8unorm, write>;
@@ -802,11 +952,27 @@ fn main(
 textureStore(texture, location, value);
 ```
 
+- `var<storage, S>`
+  - `S` denotes read-write access type
+
+```rust
+// in BufferInitDescriptor:
+usage: wgpu::BufferUsages::STORAGE
+    | wgpu::BufferUsages::COPY_DST
+    | wgpu::BufferUsages::COPY_SRC,
+```
+
 ::: aside
 [wgpu v0.18 workgroup examples](https://github.com/gfx-rs/wgpu/tree/v0.18/examples/hello-workgroups)
 
 [WebGPU Compute Shader Basics](https://webgpufundamentals.org/webgpu/lessons/webgpu-compute-shaders.html)
 :::
+
+## compute_example
+
+If you have cloned the project, go to `./compute_example/`
+
+or download [compute_example.zip](https://github.com/inkfin/LearnWGPU-rs/releases/download/cs_tutorial/compute_example.zip)
 
 # Demos
 

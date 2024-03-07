@@ -429,7 +429,7 @@
     "href": "slides/introduction.html#section-1",
     "title": "WGPU with Rust in 50min",
     "section": "",
-    "text": "WGPU is excellent!\n\nExcept for WGSL…\n\n\n\n\n\nIt takes times",
+    "text": "WGPU is excellent!\n\nExcept for WGSL… link",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -458,11 +458,33 @@
     ]
   },
   {
+    "objectID": "slides/introduction.html#wgsl-types",
+    "href": "slides/introduction.html#wgsl-types",
+    "title": "WGPU with Rust in 50min",
+    "section": "WGSL types",
+    "text": "WGSL types\n\n\n\nbasic types\n\ni32, u32, f32, bool\n\nbuiltins\n\n@builtin(vertex_index), @builtin(position)\n\nvectors\n\nvec2f === vec2&lt;f32&gt;\nvec3u === vec3&lt;u32&gt;\nvec4i === vec4&lt;i32&gt;\nconstructors\n\nmatrices\n\nmat2x3&lt;f32&gt; === mat2x3f (row x column)\ncolumn major\nconstructors\n\n\n\n\nfixed-size arrays\n\narray&lt;f32,5&gt;, c must be const-declared.\n\nruntime-sized arrays\n\ncan only be used with storage buffer resources.\n@group(0) @binding(0) var&lt;storage&gt; weights: array&lt;f32&gt;;\nUse the arrayLength() builtin function to get the element count.\n\nStructures\nAutomic Types\nPointers (What?)",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
     "objectID": "slides/introduction.html#wgsl-simple-example",
     "href": "slides/introduction.html#wgsl-simple-example",
     "title": "WGPU with Rust in 50min",
     "section": "WGSL simple example 1",
     "text": "WGSL simple example 1\nstruct VertexOutput {\n    @builtin(position) clip_position: vec4&lt;f32&gt;,\n};\n\n@vertex\nfn vs_main(\n    @builtin(vertex_index) in_vertex_index: u32,\n) -&gt; VertexOutput {\n    var out: VertexOutput;\n    let x = f32(1 - i32(in_vertex_index)) * 0.5;\n    let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 0.5;\n    out.clip_position = vec4&lt;f32&gt;(x, y, 0.0, 1.0);\n    return out;\n}\n\n@fragment\nfn fs_main(in: VertexOutput) -&gt; @location(0) vec4&lt;f32&gt; {\n    return vec4&lt;f32&gt;(0.3, 0.2, 0.1, 1.0);\n}\nlearn-wgpu: tutorial3",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#wgsl-online-demos",
+    "href": "slides/introduction.html#wgsl-online-demos",
+    "title": "WGPU with Rust in 50min",
+    "section": "WGSL online demos",
+    "text": "WGSL online demos\nonline tutorial & playground\nonline editor",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -491,11 +513,44 @@
     ]
   },
   {
-    "objectID": "slides/introduction.html#compute-shader-in-wgsl",
-    "href": "slides/introduction.html#compute-shader-in-wgsl",
+    "objectID": "slides/introduction.html#workgroups-builtins",
+    "href": "slides/introduction.html#workgroups-builtins",
     "title": "WGPU with Rust in 50min",
-    "section": "Compute Shader in WGSL",
-    "text": "Compute Shader in WGSL\nWorkgroups\n@builtin(workgroup_id)            workgroup_id : vec3&lt;u32&gt;,\n@builtin(local_invocation_id)     local_invocation_id : vec3&lt;u32&gt;,\n@builtin(global_invocation_id)    global_invocation_id : vec3&lt;u32&gt;,\n@builtin(local_invocation_index)  local_invocation_index: u32,\n@builtin(num_workgroups)          num_workgroups: vec3&lt;u32&gt;\nStorage buffers\n@group(0) @binding(0) var&lt;storage, read_write&gt; v_indices: array&lt;u32&gt;;\n@group(1) @binding(0) var texture: texture_storage_2d&lt;rgba8unorm, write&gt;;\n// in fn main():\ntextureStore(texture, location, value);\n\n\nwgpu v0.18 workgroup examples\nWebGPU Compute Shader Basics",
+    "section": "Workgroups builtins",
+    "text": "Workgroups builtins\n@builtin(workgroup_id)            workgroup_id : vec3&lt;u32&gt;,\n@builtin(local_invocation_id)     local_invocation_id : vec3&lt;u32&gt;,\n@builtin(global_invocation_id)    global_invocation_id : vec3&lt;u32&gt;,\n@builtin(local_invocation_index)  local_invocation_index: u32,\n@builtin(num_workgroups)          num_workgroups: vec3&lt;u32&gt;",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#workgroups-shared-memories",
+    "href": "slides/introduction.html#workgroups-shared-memories",
+    "title": "WGPU with Rust in 50min",
+    "section": "Workgroups shared memories",
+    "text": "Workgroups shared memories\ntour-of-wgsl\n\nlike shared memories in OpenGL\nbarriers: workgroupBarrier()\nUnlike OpenGL, wgpu encourages computation done within one workgroup. It limits access by using the address space [var&lt;workgroup&gt;].\n\n// Create zero-initialized workgroup shared data\nconst workgroup_len : u32 = 8;\nvar&lt;workgroup&gt; workgroup_data: array&lt;u32, workgroup_len&gt;;\n\n@group(0) @binding(0) var&lt;storage, read&gt; input_data: array&lt;u32&gt;;\n@group(0) @binding(1) var&lt;storage, read_write&gt; output_data: u32;\n\n// Our workgroup will execute workgroup_len invocations of the shader\n@compute @workgroup_size(workgroup_len, 1, 1)\nfn computeMain(@builtin(local_invocation_id) local_id: vec3&lt;u32&gt;) {\n  // Each invocation will populate the shared workgroup data from the input data\n  workgroup_data[local_id.x] = input_data[local_id.x];\n\n  // Wait for each invocation to populate their region of local data\n  workgroupBarrier();\n\n  // Get the sum of the elements in the array\n  // Input Data:    [0,  1,  2,  3,   4,  5,  6,  7]\n  // Loop Pass 1:   [1,  5,  9,  13,  4,  5,  6,  7]\n  // Loop Pass 2:   [6,  22, 9,  13,  4,  5,  6,  7]\n  for (var current_size = workgroup_len / 2; current_size &gt;= 1; current_size /= 2) {\n    var sum: u32 = 0;\n    if (local_id.x &lt; current_size) {\n      // Read current values from workgroup_data\n      sum = workgroup_data[local_id.x * 2] + workgroup_data[local_id.x * 2 + 1];\n    }\n    // Wait until all invocations have finished reading from workgroup_data, and have calculated their respective sums\n    workgroupBarrier();\n    if (local_id.x &lt; current_size) {\n      workgroup_data[local_id.x] = sum;\n    }\n    // Wait for each invocation to finish one iteration of the loop, and to have finished writing to workgroup_data\n    workgroupBarrier();\n  }\n\n  // Write the sum to the output\n  if (local_id.x == 0) {\n    output_data = workgroup_data[0];\n  }\n}",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#storage-buffers",
+    "href": "slides/introduction.html#storage-buffers",
+    "title": "WGPU with Rust in 50min",
+    "section": "Storage buffers",
+    "text": "Storage buffers\n@group(0) @binding(0) var&lt;storage, read_write&gt; v_indices: array&lt;u32&gt;;\n@group(1) @binding(0) var texture: texture_storage_2d&lt;rgba8unorm, write&gt;;\n// in fn main():\ntextureStore(texture, location, value);\n\nvar&lt;storage, S&gt;\n\nS denotes read-write access type\n\n\n// in BufferInitDescriptor:\nusage: wgpu::BufferUsages::STORAGE\n    | wgpu::BufferUsages::COPY_DST\n    | wgpu::BufferUsages::COPY_SRC,\n\n\nwgpu v0.18 workgroup examples\nWebGPU Compute Shader Basics",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#compute_example",
+    "href": "slides/introduction.html#compute_example",
+    "title": "WGPU with Rust in 50min",
+    "section": "compute_example",
+    "text": "compute_example\nIf you have cloned the project, go to ./compute_example/\nor download compute_example.zip",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
