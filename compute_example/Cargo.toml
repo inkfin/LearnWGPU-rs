@@ -1,0 +1,33 @@
+[package]
+name = "compute-example"
+description = "wgpu hello compute example"
+edition = "2021"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "compute-example"
+path = "src/main.rs"
+
+[dependencies]
+bytemuck = { version = "1.12", features = ["derive"] }
+env_logger = "0.10"
+flume = "0.11"
+pollster = "0.3"
+wgpu = "0.18.0"
+winit = "0.28"
+log = "0.4"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.7"
+console_log = { version = "1", features = ["color"] }
+wasm-bindgen = "0.2.87"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Window",
+    "Element",
+    "Location",
+] }

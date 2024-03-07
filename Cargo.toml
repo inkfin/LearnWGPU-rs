@@ -1,10 +1,11 @@
 [workspace]
 members = [
-    "example_cube",
-    "example_fish",
-    "hello_compute",
-    "hello_workgroups",
-    "hello_synchronization",
+  "example_cube",
+  "example_fish",
+  "hello_compute",
+  "hello_workgroups",
+  "hello_synchronization",
+  "compute_example",
 ]
 resolver = "2"
 
