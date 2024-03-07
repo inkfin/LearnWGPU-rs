@@ -16,11 +16,13 @@ website:
       - href: index.qmd
         text: Home
       - section: "Slides"
-        contents: slides/*
+        contents:
+          - slides/introduction.qmd
       - section: "Demos"
         contents:
           - demos/example_cube/index.qmd
           - demos/example_fish/index.qmd
+          - demos/wgpu_examples/index.qmd
       - about.qmd
 
 format:

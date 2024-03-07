@@ -30,6 +30,36 @@ format:
 - multiple backends, including Vulkan, webgpu
 :::
 
+## Learn WebGPU
+
+- [webgpu fundamentals tutorial](https://webgpufundamentals.org/webgpu/lessons/webgpu-fundamentals.html)
+
+![](assets/webgpufundamentals.png){fig-align="center"}
+
+---
+
+::: {.r-stack}
+![](assets/the-javascript-trinity.jpg){.fragment fig-align="center"}
+
+![](assets/javascript-math.png){.fragment fig-align="center"}
+
+![](assets/js-the-good-part.png){.fragment fig-align="center"}
+:::
+
+::: asside
+https://javascriptwtf.com/
+:::
+
+## WebAssembly
+
+![](assets/wasm-logo.png){fig-align="center"}
+
+. . .
+
+> Wasm is designed as a portable compilation target for programming languages, enabling deployment on the web for client and server applications.
+
+[webassembly.org](https://webassembly.org/)
+
 ## Meet Rust ![](https://www.rust-lang.org/static/images/rust-logo-blk.svg){width=10%}
 
 - Rust is a modern programming language that balances high-level ergonomics and low-level control. ^[The book: https://doc.rust-lang.org/book/]
@@ -133,7 +163,8 @@ The official repository example (some of v0.18 examples are broken with current 
 
 # Wgpu pipeline
 
-## What we have learned from 521 
+## What we have learned from 521 about OpenGL
+
 :::{.incremental}
 - Everything is in a giant state machine
 - `glCommand`s depend on context
@@ -141,6 +172,26 @@ The official repository example (some of v0.18 examples are broken with current 
 - Need to _bind_ objects to the current target before performing any actions
 - No abstraction for render passes and render pipeline
   - Need developers to create their own pipeline by setting things in the context
+:::
+
+## OpenGL Vulkan WebGPU
+
+OpenGL
+
+::: {.fragment}
+- ~80 lines
+:::
+
+Vulkan
+
+::: {.fragment}
+- ~400 lines
+:::
+
+WebGPU
+
+::: {.fragment}
+- only 175 lines^[[hello_triangle](https://github.com/gfx-rs/wgpu/blob/v0.19/examples/src/hello_triangle/mod.rs)]
 :::
 
 ## Wgpu pipeline {.smaller}
@@ -343,12 +394,16 @@ source code: `example_cube/src/lib.rs:481`
 
 
 ## RenderPipeline
+
 - The collection of resources and states.
-  1. Shader
-  2. Buffers (VertexBuffers, UniformBuffers)
-  3. primitive state
-  4. depth_stencil
-  5. other things we don't care about...
+
+:::{.incremental}
+1. Shader
+2. Buffers (VertexBuffers, UniformBuffers)
+3. primitive state
+4. depth_stencil
+5. ...
+:::
 
 ## RenderPipeline
 
@@ -450,7 +505,7 @@ wgpu::VertexBufferLayout {
   usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
   ```
 - Comparing to `OpenGL`:
-  ```{.c++}
+  ```c++
   glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
   ```
 
@@ -594,6 +649,27 @@ var s_diffuse: sampler;
 
 # WebGPU Shading Language (WGSL) basics
 
+## {auto-animate="true"}
+
+WGPU is excellent!
+
+## {auto-animate="true"}
+
+~~WGPU is excellent!~~
+
+. . .
+
+Except for WGSL...
+
+. . .
+
+![](assets/wgsl-is-terrible.png)
+
+. . .
+
+It takes times
+
+
 ## Yes, you don't need to learn WGSL!
 
 Thanks to [Naga](https://github.com/gfx-rs/wgpu/tree/trunk/naga)
@@ -605,26 +681,25 @@ Thanks to [Naga](https://github.com/gfx-rs/wgpu/tree/trunk/naga)
 - ~~You only need to learn WGSL~~
 
 
-## Support languages
+## Supported Front-ends
 
+[current support](https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points)
+
+::: {.incremental}
 - SPIR-V first class support
-- HLSL good support
-- GLSL has many limitations
-
-```glsl
-uniform sampler2D mySampler;
-uniform texture2D myTexture;
-```
-<br/>
-
-```wgsl
-@group(0) @binding(0) var mySampler: sampler;
-@group(0) @binding(1) var myTexture: texture_2d<f32>;
-```
-
-::: aside
-current support: https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points
+- GLSL has many limitations (440+ & Vulkan semantics only)
+  ```glsl
+  uniform sampler2D mySampler;
+  uniform texture2D myTexture;
+  // == naga ==>
+  @group(0) @binding(0) var mySampler: sampler;
+  @group(0) @binding(1) var myTexture: texture_2d<f32>;
+  ```
+- HLSL/GLSL/MSL -> SPIRV -> WGSL -> SPIRV -> [platform native]
+  - _What a journey!_
 :::
+
+
 
 ## WGSL simple example ^[[learn-wgpu: tutorial3](https://github.com/sotrh/learn-wgpu/blob/master/code/beginner/tutorial3-pipeline/src/shader.wgsl)]
 

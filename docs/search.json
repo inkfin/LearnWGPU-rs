@@ -1,10 +1,94 @@
 [
   {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "Hi, this is a site where I store my tutorials and slides; you can try out the demos in demo sections and see the source code in the git repository.",
+    "crumbs": [
+      "About"
+    ]
+  },
+  {
+    "objectID": "slides/intro.html",
+    "href": "slides/intro.html",
+    "title": "wgpu with rust",
+    "section": "",
+    "text": "40 pages\n\n\nWGPU is an implementation of WebGPU &gt; 5min\n\n\n\n\n10min\n\n\n\n\n\n5min\n\n\n\n\nbuffers, stuff with example code &gt; 20min\n\n\n\n\n10min"
+  },
+  {
+    "objectID": "slides/intro.html#what-is-wgpu",
+    "href": "slides/intro.html#what-is-wgpu",
+    "title": "wgpu with rust",
+    "section": "",
+    "text": "WGPU is an implementation of WebGPU &gt; 5min"
+  },
+  {
+    "objectID": "slides/intro.html#rust-in-10min",
+    "href": "slides/intro.html#rust-in-10min",
+    "title": "wgpu with rust",
+    "section": "",
+    "text": "10min"
+  },
+  {
+    "objectID": "slides/intro.html#an-easy-wgsl-example",
+    "href": "slides/intro.html#an-easy-wgsl-example",
+    "title": "wgpu with rust",
+    "section": "",
+    "text": "5min"
+  },
+  {
+    "objectID": "slides/intro.html#wgpu-pipeline",
+    "href": "slides/intro.html#wgpu-pipeline",
+    "title": "wgpu with rust",
+    "section": "",
+    "text": "buffers, stuff with example code &gt; 20min"
+  },
+  {
+    "objectID": "slides/intro.html#example-demonstration",
+    "href": "slides/intro.html#example-demonstration",
+    "title": "wgpu with rust",
+    "section": "",
+    "text": "10min"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Home",
+    "section": "",
+    "text": "This is the home directory of 521-rs project.",
+    "crumbs": [
+      "Home"
+    ]
+  },
+  {
     "objectID": "slides/introduction.html#what-is-webgpu",
     "href": "slides/introduction.html#what-is-webgpu",
     "title": "WGPU with Rust in 50min",
     "section": "What is WebGPU?",
     "text": "What is WebGPU?\n\nWebGPU is the next generation of WebGL and a cross-platform API.\nBackends: browser webgpu, vulkan, DX12, metal…\nImplementations\n\nwgpu for rust\nwgpu-native for c++\ngoogle dawn implementation in chromium\n\n\n\n\n\n\n\n\n\n\n\nFigure 1: wgpu github page\n\n\n\n\n\n\n\n\n\n\n\nFigure 2: wgpu-native github page\n\n\n\n\n\n\n\n\nmore universal\nmultiple backends, including Vulkan, webgpu",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#learn-webgpu",
+    "href": "slides/introduction.html#learn-webgpu",
+    "title": "WGPU with Rust in 50min",
+    "section": "Learn WebGPU",
+    "text": "Learn WebGPU\n\nwebgpu fundamentals tutorial",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#webassembly",
+    "href": "slides/introduction.html#webassembly",
+    "title": "WGPU with Rust in 50min",
+    "section": "WebAssembly",
+    "text": "WebAssembly\n\n\n\nWasm is designed as a portable compilation target for programming languages, enabling deployment on the web for client and server applications.\n\nwebassembly.org",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -77,11 +161,22 @@
     ]
   },
   {
-    "objectID": "slides/introduction.html#what-we-have-learned-from-521",
-    "href": "slides/introduction.html#what-we-have-learned-from-521",
+    "objectID": "slides/introduction.html#what-we-have-learned-from-521-about-opengl",
+    "href": "slides/introduction.html#what-we-have-learned-from-521-about-opengl",
     "title": "WGPU with Rust in 50min",
-    "section": "What we have learned from 521",
-    "text": "What we have learned from 521\n\n\nEverything is in a giant state machine\nglCommands depend on context\nObjects are generated and returned as IDs\nNeed to bind objects to the current target before performing any actions\nNo abstraction for render passes and render pipeline\n\nNeed developers to create their own pipeline by setting things in the context",
+    "section": "What we have learned from 521 about OpenGL",
+    "text": "What we have learned from 521 about OpenGL\n\n\nEverything is in a giant state machine\nglCommands depend on context\nObjects are generated and returned as IDs\nNeed to bind objects to the current target before performing any actions\nNo abstraction for render passes and render pipeline\n\nNeed developers to create their own pipeline by setting things in the context",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#opengl-vulkan-webgpu",
+    "href": "slides/introduction.html#opengl-vulkan-webgpu",
+    "title": "WGPU with Rust in 50min",
+    "section": "OpenGL Vulkan WebGPU",
+    "text": "OpenGL Vulkan WebGPU\nOpenGL\n\n\n~80 lines\n\n\nVulkan\n\n\n~400 lines\n\n\nWebGPU\n\n\nonly 175 lines1\n\n\nhello_triangle",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -169,7 +264,7 @@
     "href": "slides/introduction.html#renderpipeline",
     "title": "WGPU with Rust in 50min",
     "section": "RenderPipeline",
-    "text": "RenderPipeline\n\nThe collection of resources and states.\n\nShader\nBuffers (VertexBuffers, UniformBuffers)\nprimitive state\ndepth_stencil\nother things we don’t care about…",
+    "text": "RenderPipeline\n\nThe collection of resources and states.\n\n\n\nShader\nBuffers (VertexBuffers, UniformBuffers)\nprimitive state\ndepth_stencil\n…",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -235,7 +330,7 @@
     "href": "slides/introduction.html#uniform-buffers",
     "title": "WGPU with Rust in 50min",
     "section": "Uniform Buffers",
-    "text": "Uniform Buffers\n\nData that is uniform in the same render pass\n\nread-only in shader\ncan be updated (frequently) in client code\n\nusage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,\nComparing to OpenGL: {.c++}   glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);",
+    "text": "Uniform Buffers\n\nData that is uniform in the same render pass\n\nread-only in shader\ncan be updated (frequently) in client code\n\nusage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,\nComparing to OpenGL:\nglBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -319,6 +414,28 @@
     ]
   },
   {
+    "objectID": "slides/introduction.html#section",
+    "href": "slides/introduction.html#section",
+    "title": "WGPU with Rust in 50min",
+    "section": "",
+    "text": "WGPU is excellent!",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
+    "objectID": "slides/introduction.html#section-1",
+    "href": "slides/introduction.html#section-1",
+    "title": "WGPU with Rust in 50min",
+    "section": "",
+    "text": "WGPU is excellent!\n\nExcept for WGSL…\n\n\n\n\n\nIt takes times",
+    "crumbs": [
+      "Slides",
+      "WGPU with Rust in 50min"
+    ]
+  },
+  {
     "objectID": "slides/introduction.html#yes-you-dont-need-to-learn-wgsl",
     "href": "slides/introduction.html#yes-you-dont-need-to-learn-wgsl",
     "title": "WGPU with Rust in 50min",
@@ -330,11 +447,11 @@
     ]
   },
   {
-    "objectID": "slides/introduction.html#support-languages",
-    "href": "slides/introduction.html#support-languages",
+    "objectID": "slides/introduction.html#supported-front-ends",
+    "href": "slides/introduction.html#supported-front-ends",
     "title": "WGPU with Rust in 50min",
-    "section": "Support languages",
-    "text": "Support languages\n\nSPIR-V first class support\nHLSL good support\nGLSL has many limitations\n\nuniform sampler2D mySampler;\nuniform texture2D myTexture;\n\n@group(0) @binding(0) var mySampler: sampler;\n@group(0) @binding(1) var myTexture: texture_2d&lt;f32&gt;;\n\n\ncurrent support: https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points",
+    "section": "Supported Front-ends",
+    "text": "Supported Front-ends\ncurrent support\n\n\nSPIR-V first class support\nGLSL has many limitations (440+ & Vulkan semantics only)\nuniform sampler2D mySampler;\nuniform texture2D myTexture;\n// == naga ==&gt;\n@group(0) @binding(0) var mySampler: sampler;\n@group(0) @binding(1) var myTexture: texture_2d&lt;f32&gt;;\nHLSL/GLSL/MSL -&gt; SPIRV -&gt; WGSL -&gt; SPIRV -&gt; [platform native]\n\nWhat a journey!",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
@@ -382,92 +499,6 @@
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"
-    ]
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Home",
-    "section": "",
-    "text": "This is the home directory of 521-rs project.",
-    "crumbs": [
-      "Home"
-    ]
-  },
-  {
-    "objectID": "slides/intro.html",
-    "href": "slides/intro.html",
-    "title": "wgpu with rust",
-    "section": "",
-    "text": "40 pages\n\n\nWGPU is an implementation of WebGPU &gt; 5min\n\n\n\n\n10min\n\n\n\n\n\n5min\n\n\n\n\nbuffers, stuff with example code &gt; 20min\n\n\n\n\n10min",
-    "crumbs": [
-      "Slides",
-      "wgpu with rust"
-    ]
-  },
-  {
-    "objectID": "slides/intro.html#what-is-wgpu",
-    "href": "slides/intro.html#what-is-wgpu",
-    "title": "wgpu with rust",
-    "section": "",
-    "text": "WGPU is an implementation of WebGPU &gt; 5min",
-    "crumbs": [
-      "Slides",
-      "wgpu with rust"
-    ]
-  },
-  {
-    "objectID": "slides/intro.html#rust-in-10min",
-    "href": "slides/intro.html#rust-in-10min",
-    "title": "wgpu with rust",
-    "section": "",
-    "text": "10min",
-    "crumbs": [
-      "Slides",
-      "wgpu with rust"
-    ]
-  },
-  {
-    "objectID": "slides/intro.html#an-easy-wgsl-example",
-    "href": "slides/intro.html#an-easy-wgsl-example",
-    "title": "wgpu with rust",
-    "section": "",
-    "text": "5min",
-    "crumbs": [
-      "Slides",
-      "wgpu with rust"
-    ]
-  },
-  {
-    "objectID": "slides/intro.html#wgpu-pipeline",
-    "href": "slides/intro.html#wgpu-pipeline",
-    "title": "wgpu with rust",
-    "section": "",
-    "text": "buffers, stuff with example code &gt; 20min",
-    "crumbs": [
-      "Slides",
-      "wgpu with rust"
-    ]
-  },
-  {
-    "objectID": "slides/intro.html#example-demonstration",
-    "href": "slides/intro.html#example-demonstration",
-    "title": "wgpu with rust",
-    "section": "",
-    "text": "10min",
-    "crumbs": [
-      "Slides",
-      "wgpu with rust"
-    ]
-  },
-  {
-    "objectID": "about.html",
-    "href": "about.html",
-    "title": "About",
-    "section": "",
-    "text": "Hi, this is a site where I store my tutorials and slides; you can try out the demos in demo sections and see the source code in the git repository.",
-    "crumbs": [
-      "About"
     ]
   }
 ]

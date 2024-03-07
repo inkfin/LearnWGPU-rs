@@ -2,30 +2,34 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://inkfin.github.io/LearnWGPU-rs/demos/example_cube/index.html</loc>
-    <lastmod>2024-02-23T03:16:54.358Z</lastmod>
+    <lastmod>2024-03-07T03:52:21.731Z</lastmod>
   </url>
   <url>
-    <loc>https://inkfin.github.io/LearnWGPU-rs/demos/hello-world.html</loc>
-    <lastmod>2024-02-23T01:33:29.939Z</lastmod>
-  </url>
-  <url>
-    <loc>https://inkfin.github.io/LearnWGPU-rs/slides/introduction.html</loc>
-    <lastmod>2024-03-04T02:02:38.642Z</lastmod>
-  </url>
-  <url>
-    <loc>https://inkfin.github.io/LearnWGPU-rs/index.html</loc>
-    <lastmod>2024-02-24T18:48:18.319Z</lastmod>
-  </url>
-  <url>
-    <loc>https://inkfin.github.io/LearnWGPU-rs/slides/intro.html</loc>
-    <lastmod>2024-02-27T15:34:51.657Z</lastmod>
+    <loc>https://inkfin.github.io/LearnWGPU-rs/demos/example_fish/index.html</loc>
+    <lastmod>2024-02-23T03:16:44.816Z</lastmod>
   </url>
   <url>
     <loc>https://inkfin.github.io/LearnWGPU-rs/about.html</loc>
     <lastmod>2024-03-04T02:05:27.086Z</lastmod>
   </url>
   <url>
-    <loc>https://inkfin.github.io/LearnWGPU-rs/demos/example_fish/index.html</loc>
-    <lastmod>2024-02-23T03:16:44.816Z</lastmod>
+    <loc>https://inkfin.github.io/LearnWGPU-rs/slides/intro.html</loc>
+    <lastmod>2024-02-27T15:34:51.657Z</lastmod>
+  </url>
+  <url>
+    <loc>https://inkfin.github.io/LearnWGPU-rs/index.html</loc>
+    <lastmod>2024-02-24T18:48:18.319Z</lastmod>
+  </url>
+  <url>
+    <loc>https://inkfin.github.io/LearnWGPU-rs/slides/introduction.html</loc>
+    <lastmod>2024-03-07T06:00:39.569Z</lastmod>
+  </url>
+  <url>
+    <loc>https://inkfin.github.io/LearnWGPU-rs/demos/hello-world.html</loc>
+    <lastmod>2024-02-23T01:33:29.939Z</lastmod>
+  </url>
+  <url>
+    <loc>https://inkfin.github.io/LearnWGPU-rs/demos/wgpu_examples/index.html</loc>
+    <lastmod>2024-03-07T04:47:06.386Z</lastmod>
   </url>
 </urlset>

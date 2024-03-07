@@ -465,6 +465,46 @@ Figure&nbsp;2: wgpu-native github page
           display:block!important;
       }</style></aside>
 </section>
+<section id="learn-webgpu" class="slide level2">
+<h2>Learn WebGPU</h2>
+<ul>
+<li><a href="https://webgpufundamentals.org/webgpu/lessons/webgpu-fundamentals.html">webgpu fundamentals tutorial</a></li>
+</ul>
+
+<img data-src="assets/webgpufundamentals.png" class="quarto-figure quarto-figure-center r-stretch"></section>
+<section class="slide level2">
+
+<div class="r-stack">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="assets/the-javascript-trinity.jpg" class="fragment quarto-figure quarto-figure-center"></p>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="assets/javascript-math.png" class="fragment quarto-figure quarto-figure-center"></p>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="assets/js-the-good-part.png" class="fragment quarto-figure quarto-figure-center"></p>
+</figure>
+</div>
+</div>
+<div class="asside">
+<p>https://javascriptwtf.com/</p>
+</div>
+</section>
+<section id="webassembly" class="slide level2">
+<h2>WebAssembly</h2>
+
+<img data-src="assets/wasm-logo.png" class="quarto-figure quarto-figure-center r-stretch"><div class="fragment">
+<blockquote>
+<p>Wasm is designed as a portable compilation target for programming languages, enabling deployment on the web for client and server applications.</p>
+</blockquote>
+<p><a href="https://webassembly.org/">webassembly.org</a></p>
+</div>
+</section>
 <section id="meet-rust" class="slide level2">
 <h2>Meet Rust <img data-src="https://www.rust-lang.org/static/images/rust-logo-blk.svg" style="width:10.0%"></h2>
 <ul>
@@ -528,7 +568,7 @@ Figure&nbsp;2: wgpu-native github page
 <p>To run the code:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode numberSource shell number-lines code-with-copy"><code class="sourceCode"><span id="cb6-1"><a></a>cargo run</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>The result should be:</p>
-<div id="23a079c3" class="cell" data-execution_count="1">
+<div id="6fa2210b" class="cell" data-execution_count="1">
 <div class="cell-output cell-output-stdout">
 <pre><code>Hello, world! from "ink"</code></pre>
 </div>
@@ -558,8 +598,8 @@ Figure&nbsp;2: wgpu-native github page
 <h1>Wgpu pipeline</h1>
 
 </section>
-<section id="what-we-have-learned-from-521" class="slide level2">
-<h2>What we have learned from 521</h2>
+<section id="what-we-have-learned-from-521-about-opengl" class="slide level2">
+<h2>What we have learned from 521 about OpenGL</h2>
 <div>
 <ul>
 <li class="fragment">Everything is in a giant state machine</li>
@@ -573,6 +613,27 @@ Figure&nbsp;2: wgpu-native github page
 </ul>
 </div>
 </section>
+<section id="opengl-vulkan-webgpu" class="slide level2">
+<h2>OpenGL Vulkan WebGPU</h2>
+<p>OpenGL</p>
+<div class="fragment">
+<ul>
+<li>~80 lines</li>
+</ul>
+</div>
+<p>Vulkan</p>
+<div class="fragment">
+<ul>
+<li>~400 lines</li>
+</ul>
+</div>
+<p>WebGPU</p>
+<div class="fragment">
+<ul>
+<li>only 175 lines<sup>1</sup></li>
+</ul>
+</div>
+<aside><ol class="aside-footnotes"><li id="fn2"><p><a href="https://github.com/gfx-rs/wgpu/blob/v0.19/examples/src/hello_triangle/mod.rs">hello_triangle</a></p></li></ol></aside></section>
 <section id="wgpu-pipeline-1" class="slide level2 smaller">
 <h2>Wgpu pipeline</h2>
 <ul>
@@ -933,15 +994,17 @@ classDiagram
 <section id="renderpipeline" class="slide level2">
 <h2>RenderPipeline</h2>
 <ul>
-<li>The collection of resources and states.
-<ol type="1">
-<li>Shader</li>
-<li>Buffers (VertexBuffers, UniformBuffers)</li>
-<li>primitive state</li>
-<li>depth_stencil</li>
-<li>other things we don’t care about…</li>
-</ol></li>
+<li>The collection of resources and states.</li>
 </ul>
+<div>
+<ol type="1">
+<li class="fragment">Shader</li>
+<li class="fragment">Buffers (VertexBuffers, UniformBuffers)</li>
+<li class="fragment">primitive state</li>
+<li class="fragment">depth_stencil</li>
+<li class="fragment">…</li>
+</ol>
+</div>
 </section>
 <section id="renderpipeline-1" class="slide level2">
 <h2>RenderPipeline</h2>
@@ -966,7 +1029,7 @@ classDiagram
 
 <aside><div>
 <p>see <code>example_cube/src/lib.rs:275</code></p>
-</div><ol class="aside-footnotes"><li id="fn2"><p>[<a href="https://gpuweb.github.io/gpuweb/#buffer-interface">WebGPU <code>GPUBuffer</code></a>]</p></li></ol></aside></section>
+</div><ol class="aside-footnotes"><li id="fn3"><p>[<a href="https://gpuweb.github.io/gpuweb/#buffer-interface">WebGPU <code>GPUBuffer</code></a>]</p></li></ol></aside></section>
 <section id="vertexbuffer" class="slide level2">
 <h2>VertexBuffer</h2>
 <p>Create a buffer and init with raw data.</p>
@@ -1030,13 +1093,14 @@ classDiagram
 <section id="uniform-buffers" class="slide level2">
 <h2>Uniform Buffers</h2>
 <ul>
-<li>Data that is uniform in the same render pass
+<li><p>Data that is uniform in the same render pass</p>
 <ul>
 <li>read-only in shader</li>
 <li>can be updated (frequently) in client code</li>
 </ul>
 <div class="sourceCode" id="cb18"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb18-1"><a></a>usage<span class="op">:</span> <span class="pp">wgpu::BufferUsages::</span>UNIFORM <span class="op">|</span> <span class="pp">wgpu::BufferUsages::</span>COPY_DST<span class="op">,</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
-<li>Comparing to <code>OpenGL</code>: <code>{.c++}   glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_DYNAMIC_DRAW);</code></li>
+<li><p>Comparing to <code>OpenGL</code>:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode numberSource cpp number-lines code-with-copy"><code class="sourceCode cpp"><span id="cb19-1"><a></a>glBufferData<span class="op">(</span>GL_UNIFORM_BUFFER<span class="op">,</span> size<span class="op">,</span> NULL<span class="op">,</span> GL_DYNAMIC_DRAW<span class="op">);</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
 </ul>
 </section>
 <section id="cont.-2" class="slide level2">
@@ -1046,16 +1110,16 @@ classDiagram
 <ul>
 <li>defines how shader treats the buffer</li>
 </ul>
-<div class="sourceCode" id="cb19"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb19-1"><a></a><span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
-<span id="cb19-2"><a></a>  binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
-<span id="cb19-3"><a></a>  visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>VERTEX<span class="op">,</span></span>
-<span id="cb19-4"><a></a>  ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Buffer <span class="op">{</span></span>
-<span id="cb19-5"><a></a>      ty<span class="op">:</span> <span class="pp">wgpu::BufferBindingType::</span>Uniform<span class="op">,</span></span>
-<span id="cb19-6"><a></a>      has_dynamic_offset<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
-<span id="cb19-7"><a></a>      min_binding_size<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
-<span id="cb19-8"><a></a>  <span class="op">},</span></span>
-<span id="cb19-9"><a></a>  count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
-<span id="cb19-10"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
+<div class="sourceCode" id="cb20"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb20-1"><a></a><span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
+<span id="cb20-2"><a></a>  binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb20-3"><a></a>  visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>VERTEX<span class="op">,</span></span>
+<span id="cb20-4"><a></a>  ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Buffer <span class="op">{</span></span>
+<span id="cb20-5"><a></a>      ty<span class="op">:</span> <span class="pp">wgpu::BufferBindingType::</span>Uniform<span class="op">,</span></span>
+<span id="cb20-6"><a></a>      has_dynamic_offset<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
+<span id="cb20-7"><a></a>      min_binding_size<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb20-8"><a></a>  <span class="op">},</span></span>
+<span id="cb20-9"><a></a>  count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb20-10"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
 </ul>
 
 <aside><div>
@@ -1079,47 +1143,47 @@ classDiagram
 </section>
 <section id="cont.-3" class="slide level2">
 <h2>Cont.</h2>
-<div class="sourceCode" id="cb20"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb20-1"><a></a><span class="pp">wgpu::</span>BindGroupLayoutDescriptor <span class="op">{</span></span>
-<span id="cb20-2"><a></a>    entries<span class="op">:</span> <span class="op">&amp;</span>[</span>
-<span id="cb20-3"><a></a>        <span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
-<span id="cb20-4"><a></a>            binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
-<span id="cb20-5"><a></a>            visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>FRAGMENT<span class="op">,</span></span>
-<span id="cb20-6"><a></a>            ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Texture <span class="op">{</span></span>
-<span id="cb20-7"><a></a>                multisampled<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
-<span id="cb20-8"><a></a>                view_dimension<span class="op">:</span> <span class="pp">wgpu::TextureViewDimension::</span>D2<span class="op">,</span></span>
-<span id="cb20-9"><a></a>                sample_type<span class="op">:</span> <span class="pp">wgpu::TextureSampleType::</span>Float <span class="op">{</span> filterable<span class="op">:</span> <span class="cn">true</span> <span class="op">},</span></span>
-<span id="cb20-10"><a></a>            <span class="op">},</span></span>
-<span id="cb20-11"><a></a>            count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
-<span id="cb20-12"><a></a>        <span class="op">},</span></span>
-<span id="cb20-13"><a></a>        <span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
-<span id="cb20-14"><a></a>            binding<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
-<span id="cb20-15"><a></a>            visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>FRAGMENT<span class="op">,</span></span>
-<span id="cb20-16"><a></a>            ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Sampler(<span class="pp">wgpu::SamplerBindingType::</span>Filtering)<span class="op">,</span></span>
-<span id="cb20-17"><a></a>            count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
-<span id="cb20-18"><a></a>        <span class="op">},</span></span>
-<span id="cb20-19"><a></a>    ]<span class="op">,</span></span>
-<span id="cb20-20"><a></a>    label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"texture_bind_group_layout"</span>)<span class="op">,</span></span>
-<span id="cb20-21"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb21-1"><a></a><span class="pp">wgpu::</span>BindGroupLayoutDescriptor <span class="op">{</span></span>
+<span id="cb21-2"><a></a>    entries<span class="op">:</span> <span class="op">&amp;</span>[</span>
+<span id="cb21-3"><a></a>        <span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
+<span id="cb21-4"><a></a>            binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb21-5"><a></a>            visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>FRAGMENT<span class="op">,</span></span>
+<span id="cb21-6"><a></a>            ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Texture <span class="op">{</span></span>
+<span id="cb21-7"><a></a>                multisampled<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
+<span id="cb21-8"><a></a>                view_dimension<span class="op">:</span> <span class="pp">wgpu::TextureViewDimension::</span>D2<span class="op">,</span></span>
+<span id="cb21-9"><a></a>                sample_type<span class="op">:</span> <span class="pp">wgpu::TextureSampleType::</span>Float <span class="op">{</span> filterable<span class="op">:</span> <span class="cn">true</span> <span class="op">},</span></span>
+<span id="cb21-10"><a></a>            <span class="op">},</span></span>
+<span id="cb21-11"><a></a>            count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb21-12"><a></a>        <span class="op">},</span></span>
+<span id="cb21-13"><a></a>        <span class="pp">wgpu::</span>BindGroupLayoutEntry <span class="op">{</span></span>
+<span id="cb21-14"><a></a>            binding<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb21-15"><a></a>            visibility<span class="op">:</span> <span class="pp">wgpu::ShaderStages::</span>FRAGMENT<span class="op">,</span></span>
+<span id="cb21-16"><a></a>            ty<span class="op">:</span> <span class="pp">wgpu::BindingType::</span>Sampler(<span class="pp">wgpu::SamplerBindingType::</span>Filtering)<span class="op">,</span></span>
+<span id="cb21-17"><a></a>            count<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb21-18"><a></a>        <span class="op">},</span></span>
+<span id="cb21-19"><a></a>    ]<span class="op">,</span></span>
+<span id="cb21-20"><a></a>    label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"texture_bind_group_layout"</span>)<span class="op">,</span></span>
+<span id="cb21-21"><a></a><span class="op">}</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 <section id="cont.-4" class="slide level2">
 <h2>Cont.</h2>
-<div class="sourceCode" id="cb21"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb21-1"><a></a><span class="kw">let</span> diffuse_bind_group <span class="op">=</span> device<span class="op">.</span>create_bind_group(</span>
-<span id="cb21-2"><a></a>    <span class="op">&amp;</span><span class="pp">wgpu::</span>BindGroupDescriptor <span class="op">{</span></span>
-<span id="cb21-3"><a></a>        layout<span class="op">:</span> <span class="op">&amp;</span>texture_bind_group_layout<span class="op">,</span></span>
-<span id="cb21-4"><a></a>        entries<span class="op">:</span> <span class="op">&amp;</span>[</span>
-<span id="cb21-5"><a></a>            <span class="pp">wgpu::</span>BindGroupEntry <span class="op">{</span></span>
-<span id="cb21-6"><a></a>                binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
-<span id="cb21-7"><a></a>                resource<span class="op">:</span> <span class="pp">wgpu::BindingResource::</span>TextureView(</span>
-<span id="cb21-8"><a></a>                    <span class="op">&amp;</span>diffuse_texture<span class="op">.</span>view)<span class="op">,</span></span>
-<span id="cb21-9"><a></a>            <span class="op">},</span></span>
-<span id="cb21-10"><a></a>            <span class="pp">wgpu::</span>BindGroupEntry <span class="op">{</span></span>
-<span id="cb21-11"><a></a>                binding<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
-<span id="cb21-12"><a></a>                resource<span class="op">:</span> <span class="pp">wgpu::BindingResource::</span>Sampler(</span>
-<span id="cb21-13"><a></a>                    <span class="op">&amp;</span>diffuse_texture<span class="op">.</span>sampler)<span class="op">,</span></span>
-<span id="cb21-14"><a></a>            <span class="op">},</span></span>
-<span id="cb21-15"><a></a>        ]<span class="op">,</span></span>
-<span id="cb21-16"><a></a>        label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"diffuse_bind_group"</span>)<span class="op">,</span></span>
-<span id="cb21-17"><a></a><span class="op">}</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode numberSource rust number-lines code-with-copy"><code class="sourceCode rust"><span id="cb22-1"><a></a><span class="kw">let</span> diffuse_bind_group <span class="op">=</span> device<span class="op">.</span>create_bind_group(</span>
+<span id="cb22-2"><a></a>    <span class="op">&amp;</span><span class="pp">wgpu::</span>BindGroupDescriptor <span class="op">{</span></span>
+<span id="cb22-3"><a></a>        layout<span class="op">:</span> <span class="op">&amp;</span>texture_bind_group_layout<span class="op">,</span></span>
+<span id="cb22-4"><a></a>        entries<span class="op">:</span> <span class="op">&amp;</span>[</span>
+<span id="cb22-5"><a></a>            <span class="pp">wgpu::</span>BindGroupEntry <span class="op">{</span></span>
+<span id="cb22-6"><a></a>                binding<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb22-7"><a></a>                resource<span class="op">:</span> <span class="pp">wgpu::BindingResource::</span>TextureView(</span>
+<span id="cb22-8"><a></a>                    <span class="op">&amp;</span>diffuse_texture<span class="op">.</span>view)<span class="op">,</span></span>
+<span id="cb22-9"><a></a>            <span class="op">},</span></span>
+<span id="cb22-10"><a></a>            <span class="pp">wgpu::</span>BindGroupEntry <span class="op">{</span></span>
+<span id="cb22-11"><a></a>                binding<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb22-12"><a></a>                resource<span class="op">:</span> <span class="pp">wgpu::BindingResource::</span>Sampler(</span>
+<span id="cb22-13"><a></a>                    <span class="op">&amp;</span>diffuse_texture<span class="op">.</span>sampler)<span class="op">,</span></span>
+<span id="cb22-14"><a></a>            <span class="op">},</span></span>
+<span id="cb22-15"><a></a>        ]<span class="op">,</span></span>
+<span id="cb22-16"><a></a>        label<span class="op">:</span> <span class="cn">Some</span>(<span class="st">"diffuse_bind_group"</span>)<span class="op">,</span></span>
+<span id="cb22-17"><a></a><span class="op">}</span>)<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 
 <aside><div>
 <p>source code: <code>example_cube/src/lib.rs:208,233</code></p>
@@ -1160,24 +1224,41 @@ classDiagram
 <ul>
 <li>Uniform</li>
 </ul>
-<div class="sourceCode" id="cb24"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb24-1"><a></a>struct CameraUniform {</span>
-<span id="cb24-2"><a></a>    view_proj: mat4x4&lt;f32&gt;,</span>
-<span id="cb24-3"><a></a>};</span>
-<span id="cb24-4"><a></a></span>
-<span id="cb24-5"><a></a>@group(1) @binding(0)</span>
-<span id="cb24-6"><a></a>var&lt;uniform&gt; camera: CameraUniform;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb25-1"><a></a>struct CameraUniform {</span>
+<span id="cb25-2"><a></a>    view_proj: mat4x4&lt;f32&gt;,</span>
+<span id="cb25-3"><a></a>};</span>
+<span id="cb25-4"><a></a></span>
+<span id="cb25-5"><a></a>@group(1) @binding(0)</span>
+<span id="cb25-6"><a></a>var&lt;uniform&gt; camera: CameraUniform;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <ul>
 <li>Texture</li>
 </ul>
-<div class="sourceCode" id="cb25"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb25-1"><a></a>@group(0) @binding(0)</span>
-<span id="cb25-2"><a></a>var t_diffuse: texture_2d&lt;f32&gt;;</span>
-<span id="cb25-3"><a></a>@group(0) @binding(1)</span>
-<span id="cb25-4"><a></a>var s_diffuse: sampler;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb26-1"><a></a>@group(0) @binding(0)</span>
+<span id="cb26-2"><a></a>var t_diffuse: texture_2d&lt;f32&gt;;</span>
+<span id="cb26-3"><a></a>@group(0) @binding(1)</span>
+<span id="cb26-4"><a></a>var s_diffuse: sampler;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section></section>
 <section>
 <section id="webgpu-shading-language-wgsl-basics" class="title-slide slide level1 center">
 <h1>WebGPU Shading Language (WGSL) basics</h1>
 
+</section>
+<section id="section" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title"></h2>
+<p>WGPU is excellent!</p>
+</section>
+<section id="section-1" class="slide level2" data-auto-animate="true">
+<h2 data-id="quarto-animate-title"></h2>
+<p><del>WGPU is excellent!</del></p>
+<div class="fragment">
+<p>Except for WGSL…</p>
+</div>
+<div class="fragment">
+<p><img data-src="assets/wgsl-is-terrible.png"></p>
+</div>
+<div class="fragment">
+<p>It takes times</p>
+</div>
 </section>
 <section id="yes-you-dont-need-to-learn-wgsl" class="slide level2">
 <h2>Yes, you don’t need to learn WGSL!</h2>
@@ -1189,22 +1270,25 @@ classDiagram
 </ul>
 </div>
 </section>
-<section id="support-languages" class="slide level2">
-<h2>Support languages</h2>
+<section id="supported-front-ends" class="slide level2">
+<h2>Supported Front-ends</h2>
+<p><a href="https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points">current support</a></p>
+<div>
 <ul>
-<li>SPIR-V first class support</li>
-<li>HLSL good support</li>
-<li>GLSL has many limitations</li>
+<li class="fragment"><p>SPIR-V first class support</p></li>
+<li class="fragment"><p>GLSL has many limitations (440+ &amp; Vulkan semantics only)</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode numberSource glsl number-lines code-with-copy"><code class="sourceCode glsl"><span id="cb27-1"><a></a><span class="kw">uniform</span> <span class="dt">sampler2D</span> mySampler<span class="op">;</span></span>
+<span id="cb27-2"><a></a><span class="kw">uniform</span> <span class="dt">texture2D</span> myTexture<span class="op">;</span></span>
+<span id="cb27-3"><a></a><span class="co">// == naga ==&gt;</span></span>
+<span id="cb27-4"><a></a>@<span class="fu">group</span><span class="op">(</span><span class="dv">0</span><span class="op">)</span> @<span class="fu">binding</span><span class="op">(</span><span class="dv">0</span><span class="op">)</span> var mySampler<span class="op">:</span> <span class="dt">sampler</span><span class="op">;</span></span>
+<span id="cb27-5"><a></a>@<span class="fu">group</span><span class="op">(</span><span class="dv">0</span><span class="op">)</span> @<span class="fu">binding</span><span class="op">(</span><span class="dv">1</span><span class="op">)</span> var myTexture<span class="op">:</span> texture_2d<span class="op">&lt;</span>f32<span class="op">&gt;;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div></li>
+<li class="fragment"><p>HLSL/GLSL/MSL -&gt; SPIRV -&gt; WGSL -&gt; SPIRV -&gt; [platform native]</p>
+<ul>
+<li class="fragment"><em>What a journey!</em></li>
+</ul></li>
 </ul>
-<div class="sourceCode" id="cb26"><pre class="sourceCode numberSource glsl number-lines code-with-copy"><code class="sourceCode glsl"><span id="cb26-1"><a></a><span class="kw">uniform</span> <span class="dt">sampler2D</span> mySampler<span class="op">;</span></span>
-<span id="cb26-2"><a></a><span class="kw">uniform</span> <span class="dt">texture2D</span> myTexture<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p><br></p>
-<div class="sourceCode" id="cb27"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb27-1"><a></a>@group(0) @binding(0) var mySampler: sampler;</span>
-<span id="cb27-2"><a></a>@group(0) @binding(1) var myTexture: texture_2d&lt;f32&gt;;</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-
-<aside><div>
-<p>current support: https://github.com/gfx-rs/wgpu/tree/trunk/naga#supported-end-points</p>
-</div></aside></section>
+</div>
+</section>
 <section id="wgsl-simple-example" class="slide level2">
 <h2>WGSL simple example <sup>1</sup></h2>
 <div class="sourceCode" id="cb28"><pre class="sourceCode numberSource wgsl number-lines code-with-copy"><code class="sourceCode"><span id="cb28-1"><a></a>struct VertexOutput {</span>
@@ -1226,7 +1310,7 @@ classDiagram
 <span id="cb28-17"><a></a>fn fs_main(in: VertexOutput) -&gt; @location(0) vec4&lt;f32&gt; {</span>
 <span id="cb28-18"><a></a>    return vec4&lt;f32&gt;(0.3, 0.2, 0.1, 1.0);</span>
 <span id="cb28-19"><a></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<aside><ol class="aside-footnotes"><li id="fn3"><p><a href="https://github.com/sotrh/learn-wgpu/blob/master/code/beginner/tutorial3-pipeline/src/shader.wgsl">learn-wgpu: tutorial3</a></p></li></ol></aside></section></section>
+<aside><ol class="aside-footnotes"><li id="fn4"><p><a href="https://github.com/sotrh/learn-wgpu/blob/master/code/beginner/tutorial3-pipeline/src/shader.wgsl">learn-wgpu: tutorial3</a></p></li></ol></aside></section></section>
 <section>
 <section id="compute-shader-in-wgpu" class="title-slide slide level1 center">
 <h1>Compute Shader in WGPU</h1>
