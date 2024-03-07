@@ -1,0 +1,28 @@
+[package]
+name = "hello_workgroups"
+edition = "2021"
+version = "0.1.0"
+description = "wgpu hello workgroups example"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "hello-workgroups"
+path = "src/main.rs"
+
+[dependencies]
+bytemuck.workspace = true
+env_logger.workspace = true
+futures-intrusive = "0.5"
+log.workspace = true
+pollster.workspace = true
+wgpu = "0.18"
+# wgpu-example.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.7"
+console_log = { version = "1", features = ["color"] }
+wasm-bindgen = "0.2.87"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document"] }

@@ -1,5 +1,11 @@
 [workspace]
-members = ["example_cube", "example_fish", "hello_compute"]
+members = [
+    "example_cube",
+    "example_fish",
+    "hello_compute",
+    "hello_workgroups",
+    "hello_synchronization",
+]
 resolver = "2"
 
 [profile.dev]
@@ -12,3 +18,9 @@ opt-level = 3
 opt-level = 'z'
 lto = true
 codegen-units = 1
+
+[workspace.dependencies]
+bytemuck = { version = "1.12", default-features = false, features = ["derive"] }
+env_logger = "0.10"
+log = "0.4"
+pollster = "0.3"

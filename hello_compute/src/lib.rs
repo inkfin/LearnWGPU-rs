@@ -3,11 +3,6 @@ use std::borrow::Cow;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
-use winit::{
-    event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
-    event::*,
-};
 
 // Indicates a u32 overflow in an intermediate Collatz value
 const OVERFLOW: u32 = 0xffffffff;
@@ -41,34 +36,8 @@ pub async fn run() {
     //         .map(|s| u32::from_str(&s).expect("You must pass a list of positive integers!"))
     //         .collect()
     // };
-    let numbers = vec![1,2,3,4];
+    let numbers = vec![1, 2, 3, 4];
     info!("input numbers are: {:?}", numbers);
-
-    // let event_loop = EventLoop::new();
-    // let window = WindowBuilder::new()
-    //     .with_title("Hello compute")
-    //     .build(&event_loop)
-    //     .unwrap();
-
-    // // Attach canvas
-    // #[cfg(target_arch = "wasm32")]
-    // {
-    //     // Winit prevents sizing with CSS, so we have to set
-    //     // the size manually when on web.
-    //     use winit::dpi::PhysicalSize;
-    //     window.set_inner_size(PhysicalSize::new(450, 400));
-
-    //     use winit::platform::web::WindowExtWebSys;
-    //     web_sys::window()
-    //         .and_then(|win| win.document())
-    //         .and_then(|doc| {
-    //             let dst = doc.get_element_by_id("wasm-example")?;
-    //             let canvas = web_sys::Element::from(window.canvas());
-    //             dst.append_child(&canvas).ok()?;
-    //             Some(())
-    //         })
-    //         .expect("Couldn't append canvas to document body.");
-    // }
 
     let steps = execute_gpu(&numbers).await.unwrap();
 
@@ -83,29 +52,8 @@ pub async fn run() {
     println!("Steps: [{}]", disp_steps.join(", "));
     #[cfg(target_arch = "wasm32")]
     info!("Steps: [{}]", disp_steps.join(", "));
-
-    // event_loop.run(move |event, _, control_flow| match event {
-    //     Event::WindowEvent {
-    //         ref event,
-    //         window_id,
-    //     } if window_id == window.id() => match event {
-    //         WindowEvent::CloseRequested
-    //         | WindowEvent::KeyboardInput {
-    //             input:
-    //                 KeyboardInput {
-    //                     state: ElementState::Pressed,
-    //                     virtual_keycode: Some(VirtualKeyCode::Escape),
-    //                     ..
-    //                 },
-    //             ..
-    //         } => *control_flow = ControlFlow::Exit,
-    //         _ => {}
-    //     },
-    //     _ => {}
-    // });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 async fn execute_gpu(numbers: &[u32]) -> Option<Vec<u32>> {
     // Instantiates instance of WebGPU
     let instance = wgpu::Instance::default();
@@ -114,16 +62,6 @@ async fn execute_gpu(numbers: &[u32]) -> Option<Vec<u32>> {
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions::default())
         .await?;
-
-    // let surface = unsafe { instance.create_surface(window) }.unwrap();
-    // let adapter = instance
-    //     .request_adapter(&wgpu::RequestAdapterOptions {
-    //         power_preference: wgpu::PowerPreference::default(),
-    //         compatible_surface: Some(&surface),
-    //         force_fallback_adapter: false,
-    //     })
-    //     .await
-    //     .unwrap();
 
     // `request_device` instantiates the feature specific connection to the GPU, defining some parameters,
     //  `features` being the available features.

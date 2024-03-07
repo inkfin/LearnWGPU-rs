@@ -1,0 +1,46 @@
+#version 450
+
+precision highp float;
+precision highp int;
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer type_1_block_0Compute {
+    uint v_indices[];
+};
+
+uint collatz_iterations(uint n_base) {
+    uint n = 0u;
+    uint i = 0u;
+    n = n_base;
+    while (true) {
+        uint _e4 = n;
+        if ((_e4 <= 1u)) {
+            break;
+        }
+        uint _e7 = n;
+        if (((_e7 % 2u) == 0u)) {
+            uint _e12 = n;
+            n = (_e12 / 2u);
+        } else {
+            uint _e15 = n;
+            if ((_e15 >= 1431655765u)) {
+                return 4294967295u;
+            }
+            uint _e20 = n;
+            n = ((3u * _e20) + 1u);
+        }
+        uint _e24 = i;
+        i = (_e24 + 1u);
+    }
+    uint _e27 = i;
+    return _e27;
+}
+
+void main() {
+    uvec3 global_id = gl_GlobalInvocationID.x;
+    uint _e7 = v_indices[global_id];
+    uint _e8 = collatz_iterations(_e7);
+    v_indices[global_id] = _e8;
+    return;
+}

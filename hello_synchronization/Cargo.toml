@@ -1,33 +1,28 @@
 [package]
-name = "hello-compute"
-description = "wgpu hello compute example"
+name = "hello_synchronization"
 edition = "2021"
 version = "0.1.0"
+description = "wgpu hello synchronization example"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "hello-compute"
+name = "hello-synchronization"
 path = "src/main.rs"
+harness = false
 
 [dependencies]
-bytemuck = { version = "1.12", features = ["derive"] }
-env_logger = "0.10"
+bytemuck.workspace = true
+env_logger.workspace = true
 flume = "0.11"
-pollster = "0.3"
-wgpu = "0.18.0"
-winit = "0.28"
-log = "0.4"
+log.workspace = true
+pollster.workspace = true
+wgpu = "0.18"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
 console_log = { version = "1", features = ["color"] }
 wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = [
-    "Document",
-    "Window",
-    "Element",
-    "Location",
-] }
+web-sys = { version = "0.3", features = ["Document"] }
