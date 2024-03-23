@@ -5,14 +5,15 @@ mod resources;
 mod texture;
 mod timer;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
-use gui::UIState;
-use instant::Instant;
 use camera::{Camera, CameraController};
+use gui::UILayer;
+use instant::Instant;
 use model::{Model, Vertex};
 use timer::Timer;
 
+use bytemuck::{Pod, Zeroable};
 use cgmath::prelude::*;
 use tracing::{error, info, warn};
 
@@ -23,13 +24,13 @@ use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalSize,
     event::*,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
+    keyboard::{Key, NamedKey},
     window::{Window, WindowBuilder},
 };
 
-
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 struct CameraUniform {
     view_proj: [[f32; 4]; 4],
 }
@@ -37,7 +38,7 @@ struct CameraUniform {
 const NUM_INSTANCES_PER_ROW: u32 = 10;
 
 #[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Pod, Zeroable)]
 struct InstanceRaw {
     model: [[f32; 4]; 4],
 }
@@ -48,7 +49,7 @@ struct Instance {
 }
 
 struct State {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -57,7 +58,7 @@ struct State {
     // The window must be declared after the surface so
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
-    window: Rc<Window>,
+    window: Arc<Window>,
     clear_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
     camera: Camera,
@@ -69,7 +70,7 @@ struct State {
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     obj_model: Model,
-    ui_state: UIState,
+    ui_state: UILayer,
 }
 
 impl CameraUniform {
@@ -135,23 +136,14 @@ impl InstanceRaw {
 
 impl State {
     // Creating some of the wgpu types requires async code
-    async fn new(window: Rc<Window>) -> Self {
+    async fn new(window: Arc<Window>) -> Self {
         let size = window.inner_size();
 
         let scale_factor = window.scale_factor();
 
-        // The instance is a handle to our GPU
-        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
+        let instance = wgpu::Instance::default();
 
-        // # Safety
-        //
-        // The surface needs to live as long as the window that created it.
-        // State owns the window, so this should be safe.
-        let surface = unsafe { instance.create_surface(window.as_ref()) }.unwrap();
+        let surface = instance.create_surface(window.clone()).unwrap();
 
         // Disable this because the unstable api is different
         #[cfg(target_arch = "wasm32")]
@@ -176,6 +168,7 @@ impl State {
             Some(adapter) => adapter,
             None => instance
                 .enumerate_adapters(wgpu::Backends::all())
+                .into_iter()
                 .find(|adapter| {
                     // Check if this adapter supports our surface
                     adapter.is_surface_supported(&surface)
@@ -186,10 +179,10 @@ impl State {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // NOTE: WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web, we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         // TODO: remove this downlevel later
                         wgpu::Limits::default()
                     } else {
@@ -219,11 +212,12 @@ impl State {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width as u32,
-            height: size.height as u32,
+            width: size.width,
+            height: size.height,
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
 
@@ -255,7 +249,7 @@ impl State {
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
-        let ui_state = UIState::new(&device, &surface_format, size, scale_factor);
+        let ui_state = UILayer::new(&device, &surface_format, size, scale_factor);
 
         let obj_model =
             resources::load_model("Amago0.obj", &device, &queue, &texture_bind_group_layout)
@@ -405,7 +399,7 @@ impl State {
         });
 
         Self {
-            window,
+            window: window.clone(),
             surface,
             device,
             queue,
@@ -433,14 +427,14 @@ impl State {
     }
 
     pub fn window(&self) -> &Window {
-        &self.window
+        self.window.as_ref()
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>, new_scale_factor: Option<f64>) {
         // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where the app would panic when minimizing on Windows.
-        if new_size.width <= 0 || new_size.height <= 0 {
+        if new_size.width == 0 || new_size.height == 0 {
             return;
         }
 
@@ -463,16 +457,13 @@ impl State {
 
         self.depth_texture =
             texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
-
-        self.ui_state.resize(new_size, new_scale_factor);
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
         let mut event_handled = match event {
             WindowEvent::CursorMoved {
                 position,
-                device_id,
-                modifiers,
+                device_id: _,
             } => {
                 self.clear_color.r = position.x / self.size.width as f64;
                 self.clear_color.g = position.y / self.size.height as f64;
@@ -559,26 +550,27 @@ impl State {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            console_error_panic_hook::set_once();
-            tracing_wasm::set_as_global_default();
-        } else {
-            tracing_subscriber::fmt::init();
-        }
+    #[cfg(target_arch = "wasm32")]
+    {
+        console_error_panic_hook::set_once();
+        tracing_wasm::set_as_global_default();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        tracing_subscriber::fmt::init();
     }
 
     info!("info!!!");
     warn!("warning!!!");
     error!("eeeeek");
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_title("Learn wgpu!")
         .build(&event_loop)
         .unwrap();
 
-    let window = Rc::new(window);
+    let window = Arc::new(window);
 
     // Attach canvas
     #[cfg(target_arch = "wasm32")]
@@ -588,7 +580,7 @@ pub async fn run() {
             .and_then(|win| win.document())
             .and_then(|doc| {
                 let dst = doc.get_element_by_id("wasm-example")?;
-                let canvas = web_sys::Element::from(window.clone().canvas());
+                let canvas = web_sys::Element::from(window.clone().canvas().unwrap());
                 dst.append_child(&canvas).ok()?;
                 Some(())
             })
@@ -622,12 +614,12 @@ pub async fn run() {
             )
         };
 
-        window.set_inner_size(get_full_size());
+        let _ = window.request_inner_size(get_full_size());
 
-        let window_rc = window.clone();
+        let window_clone = window.clone();
         let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::Event| {
             let size = get_full_size();
-            window_rc.set_inner_size(size);
+            let _ = window_clone.request_inner_size(size);
         }) as Box<dyn FnMut(_)>);
 
         web_sys::window()
@@ -641,75 +633,85 @@ pub async fn run() {
         closure.forget();
     }
 
-    event_loop.run(move |event, _, control_flow: &mut ControlFlow| {
-        *control_flow = ControlFlow::Poll;
+    event_loop
+        .run(move |event, target| {
+            // Have the closure take ownership of the resources.
+            // `event_loop.run` never returns, therefore we must do this to ensure
+            // the resources are properly cleaned up.
+            #[allow(unused_parens)]
+            let _ = (&state);
 
-        state.ui_state.egui_platform.handle_event(&event);
-        if state.ui_state.egui_platform.captures_event(&event) {
-            return;
-        }
+            // *control_flow = ControlFlow::Poll;
 
-        match event {
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == state.window.id() => {
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                                    ..
-                                },
-                            ..
-                        } => *control_flow = ControlFlow::Exit,
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size, None);
+            state.ui_state.egui_platform.handle_event(&event);
+            // update egui
+            state
+                .ui_state
+                .egui_platform
+                .update_time(timer.elapse_timer.elapsed().as_secs_f64());
+            if state.ui_state.egui_platform.captures_event(&event) {
+                return;
+            }
+
+            match event {
+                Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == state.window.id() => {
+                    if !state.input(event) {
+                        match event {
+                            WindowEvent::CloseRequested
+                            | WindowEvent::KeyboardInput {
+                                event:
+                                    KeyEvent {
+                                        state: ElementState::Pressed,
+                                        logical_key: Key::Named(NamedKey::Escape),
+                                        ..
+                                    },
+                                ..
+                            } => target.exit(),
+                            WindowEvent::Resized(physical_size) => {
+                                state.resize(*physical_size, None);
+                            }
+                            WindowEvent::RedrawRequested if window_id == state.window().id() => {
+                                // Get current time on frame start
+                                timer.render_timer = Instant::now();
+
+                                match state.render() {
+                                    Ok(_) => {}
+                                    // Reconfigure the surface if lost
+                                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size, None),
+                                    // The system is out of memory, we should probably quit
+                                    Err(wgpu::SurfaceError::OutOfMemory) => {
+                                        target.exit();
+                                    }
+                                    // All other errors (Outdated, Timeout) should be resolved by the next frame
+                                    Err(e) => eprintln!("{:?}", e),
+                                }
+
+                                timer.get_and_update_render_time();
+                            }
+                            _ => {}
                         }
-                        WindowEvent::ScaleFactorChanged {
-                            scale_factor,
-                            new_inner_size,
-                        } => {
-                            // new_inner_size is &&mut so we have to dereference it twice
-                            state.resize(**new_inner_size, Some(*scale_factor));
-                        }
-                        _ => {}
                     }
                 }
-            }
-            Event::RedrawRequested(window_id) if window_id == state.window().id() => {
-                // Get current time on frame start
-                timer.render_timer = Instant::now();
+                Event::AboutToWait => {
+                    let dt = timer.get_and_update_all_events_time();
 
-                match state.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if lost
-                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size, None),
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    // All other errors (Outdated, Timeout) should be resolved by the next frame
-                    Err(e) => eprintln!("{:?}", e),
+                    timer.state_timer = Instant::now();
+
+                    state.update(dt.as_secs_f32());
+
+                    timer.get_and_update_state_time();
+
+                    // RedrawRequested will trigger once we manually request it, or it get resized
+                    state.window().request_redraw();
                 }
-
-                timer.get_and_update_render_time();
+                Event::LoopExiting => {
+                    target.exit();
+                }
+                _ => {}
             }
-            Event::MainEventsCleared => {
-                let dt = timer.get_and_update_all_events_time();
-
-                timer.state_timer = Instant::now();
-
-                state.update(dt.as_secs_f32());
-
-                timer.get_and_update_state_time();
-
-                // RedrawRequested will only trigger once unless we manually
-                // request it.
-                state.window().request_redraw();
-            }
-            _ => {}
-        }
-    });
+        })
+        .expect("Failed to run event loop!");
 }

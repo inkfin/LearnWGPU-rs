@@ -6,6 +6,7 @@ use tracing::{error, info, warn};
 
 #[derive(Debug)]
 pub struct Timer {
+    pub elapse_timer: Instant,
     pub render_timer: Instant,
     pub state_timer: Instant,
     pub all_events_timer: Instant,
@@ -19,6 +20,7 @@ pub struct Timer {
 impl Timer {
     pub fn new() -> Self {
         Self {
+            elapse_timer: Instant::now(),
             render_timer: Instant::now(),
             state_timer: Instant::now(),
             all_events_timer: Instant::now(),
@@ -30,8 +32,7 @@ impl Timer {
     }
 
     pub fn get_all_events_time(&self) -> Duration {
-        let elapse = self.all_events_timer.elapsed();
-        elapse
+        self.all_events_timer.elapsed()
     }
 
     pub fn get_and_update_render_time(&mut self) -> Duration {

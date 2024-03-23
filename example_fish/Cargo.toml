@@ -10,45 +10,34 @@ build = "build.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cfg-if = "1"
 pollster = "0.3"
 log = "0.4"
 tracing = "0.1.36"
 tracing-subscriber = { version = "0.3.15", features = ["time"] }
-instant = "0.1"
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 
 ## GUI ##
-
-# 1st way
-# egui = "0.24.1"
-# egui-winit = "0.24.1"
-# egui-wgpu = "0.24.1"
-# wgpu = "0.18"
-# winit = "0.28"
-
-# 2nd way: only support wgpu 0.18 + winit 0.28
-egui = "0.23"
-egui_demo_lib = "0.23"
-egui_wgpu_backend = "0.27"
-egui_winit_platform = "0.20"
-wgpu = "0.18"
-winit = "0.28"
+egui = "0.26"
+egui_demo_lib = "0.26"
+wgpu = "0.19"
+winit = "0.29"
+egui_wgpu_backend = "0.28"   # egui 0.26, wgpu 0.19
+egui_winit_platform = "0.21" # egui 0.26, winit 0.29
 
 bytemuck = { version = "1.12", features = ["derive"] }
-image = { version = "0.24.7", default-features = false, features = [
+image = { version = "0.25", default-features = false, features = [
     "png",
     "jpeg",
 ] }
 cgmath = "0.18"
 anyhow = "1.0"
-tobj = { version = "3.2.1", features = ["async"] }
+tobj = { version = "4.0", features = ["async"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.6"
-console_log = "0.2.0"
+console_error_panic_hook = "0.1.7"
+console_log = "1.0.0"
 tracing-wasm = "0.2.1"
-wgpu = { version = "0.18.0" }
-# wgpu = { version = "0.18.0", features = ["webgl"] }
+wgpu = { version = "0.19", features = ["webgpu"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
@@ -57,7 +46,8 @@ web-sys = { version = "0.3", features = [
     "Element",
     "Location",
 ] }
-reqwest = { version = "0.11" }
+reqwest = { version = "0.12" }
+getrandom = { version = "0.2", features = ["js"] }
 
 [build-dependencies]
 anyhow = "1.0"

@@ -1,16 +1,13 @@
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
 
-pub struct UIState {
+pub struct UILayer {
     pub egui_platform: Platform,
     pub egui_rpass: RenderPass,
     pub demo_app: egui_demo_lib::DemoWindows,
-
-    size: winit::dpi::PhysicalSize<u32>,
-    scale_factor: f64,
 }
 
-impl UIState {
+impl UILayer {
     pub fn new(
         device: &wgpu::Device,
         surface_format: &wgpu::TextureFormat,
@@ -24,22 +21,12 @@ impl UIState {
             font_definitions: egui::FontDefinitions::default(),
             style: Default::default(),
         });
-        let egui_rpass = egui_wgpu_backend::RenderPass::new(&device, *surface_format, 1);
+        let egui_rpass = egui_wgpu_backend::RenderPass::new(device, *surface_format, 1);
         let demo_app = egui_demo_lib::DemoWindows::default();
         Self {
             egui_platform,
             egui_rpass,
             demo_app,
-            size,
-            scale_factor,
-        }
-    }
-
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>, scale_factor: Option<f64>) {
-        self.size = new_size;
-
-        if let Some(sf) = scale_factor {
-            self.scale_factor = sf;
         }
     }
 
@@ -63,13 +50,16 @@ impl UIState {
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let full_output = self.egui_platform.end_frame(Some(window));
-        let paint_jobs = self.egui_platform.context().tessellate(full_output.shapes);
+        let paint_jobs = self
+            .egui_platform
+            .context()
+            .tessellate(full_output.shapes, full_output.pixels_per_point);
 
         // Upload all resources for the GPU.
         let screen_descriptor = ScreenDescriptor {
-            physical_width: self.size.width,
-            physical_height: self.size.height,
-            scale_factor: self.scale_factor as f32,
+            physical_width: window.inner_size().width,
+            physical_height: window.inner_size().height,
+            scale_factor: window.scale_factor() as f32,
         };
         let tdelta: egui::TexturesDelta = full_output.textures_delta;
 
@@ -79,7 +69,7 @@ impl UIState {
 
             self.egui_rpass
                 .add_textures(device, queue, &tdelta)
-                .expect("add texture ok");
+                .expect("Can't add egui texture");
 
             // Record all render passes.
             self.egui_rpass
@@ -96,7 +86,7 @@ impl UIState {
 
         self.egui_rpass
             .remove_textures(tdelta)
-            .expect("remove texture ok");
+            .expect("Can't remove egui texture");
 
         egui_encoder.finish()
     }

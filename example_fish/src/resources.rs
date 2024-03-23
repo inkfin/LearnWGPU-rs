@@ -1,6 +1,5 @@
 use std::io::{BufReader, Cursor};
 
-use cfg_if::cfg_if;
 use wgpu::util::DeviceExt;
 
 use crate::{model, texture};
@@ -18,39 +17,36 @@ fn format_url(file_name: &str) -> reqwest::Url {
 }
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
-    cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let url = format_url(file_name);
-            let txt = reqwest::get(url)
-                .await?
-                .text()
-                .await?;
-        } else {
-            let path = std::path::Path::new(env!("OUT_DIR"))
-                .join("assets")
-                .join(file_name);
-            let txt = std::fs::read_to_string(path)?;
-        }
+    let txt: String;
+    #[cfg(target_arch = "wasm32")]
+    {
+        let url = format_url(file_name);
+        txt = reqwest::get(url).await?.text().await?;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let path = std::path::Path::new(env!("OUT_DIR"))
+            .join("assets")
+            .join(file_name);
+        txt = std::fs::read_to_string(path)?;
     }
 
     Ok(txt)
 }
 
 pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
-    cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let url = format_url(file_name);
-            let data = reqwest::get(url)
-                .await?
-                .bytes()
-                .await?
-                .to_vec();
-        } else {
-            let path = std::path::Path::new(env!("OUT_DIR"))
-                .join("assets")
-                .join(file_name);
-            let data = std::fs::read(path)?;
-        }
+    let data: Vec<u8>;
+    #[cfg(target_arch = "wasm32")]
+    {
+        let url = format_url(file_name);
+        data = reqwest::get(url).await?.bytes().await?.to_vec();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let path = std::path::Path::new(env!("OUT_DIR"))
+            .join("assets")
+            .join(file_name);
+        data = std::fs::read(path)?;
     }
 
     Ok(data)
@@ -83,7 +79,9 @@ pub async fn load_model(
             ..Default::default()
         },
         |p| async move {
-            let mat_text = load_string(&p).await.expect(&format!("Didn't find the material file {}", file_name));
+            let mat_text = load_string(&p)
+                .await
+                .expect(&format!("Didn't find the material file {}", file_name));
             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
         },
     )
@@ -91,7 +89,7 @@ pub async fn load_model(
 
     let mut materials = Vec::new();
     for m in obj_materials? {
-        let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
+        let diffuse_texture = load_texture(&m.diffuse_texture.unwrap(), device, queue).await?;
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout,
             entries: &[

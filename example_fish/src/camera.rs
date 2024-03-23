@@ -1,4 +1,7 @@
-use winit::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
+use winit::{
+    event::{ElementState, KeyEvent, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey},
+};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -53,37 +56,37 @@ impl CameraController {
     pub fn process_events(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
+                event:
+                    KeyEvent {
                         state,
-                        virtual_keycode: Some(keycode),
+                        physical_key: PhysicalKey::Code(keycode),
                         ..
                     },
                 ..
             } => {
                 let is_pressed = *state == ElementState::Pressed;
                 match keycode {
-                    VirtualKeyCode::W | VirtualKeyCode::Up => {
+                    KeyCode::KeyW | KeyCode::ArrowUp => {
                         self.is_forward_pressed = is_pressed;
                         true
                     }
-                    VirtualKeyCode::A | VirtualKeyCode::Left => {
+                    KeyCode::KeyA | KeyCode::ArrowLeft => {
                         self.is_left_pressed = is_pressed;
                         true
                     }
-                    VirtualKeyCode::S | VirtualKeyCode::Down => {
+                    KeyCode::KeyS | KeyCode::ArrowDown => {
                         self.is_backward_pressed = is_pressed;
                         true
                     }
-                    VirtualKeyCode::D | VirtualKeyCode::Right => {
+                    KeyCode::KeyD | KeyCode::ArrowRight => {
                         self.is_right_pressed = is_pressed;
                         true
                     }
-                    VirtualKeyCode::Q => {
+                    KeyCode::KeyQ => {
                         self.is_up_pressed = is_pressed;
                         true
                     }
-                    VirtualKeyCode::E => {
+                    KeyCode::KeyE => {
                         self.is_down_pressed = is_pressed;
                         true
                     }
