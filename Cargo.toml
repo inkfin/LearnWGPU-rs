@@ -1,11 +1,12 @@
 [workspace]
 members = [
-  "example_cube",
-  "example_fish",
-  "hello_compute",
-  "hello_workgroups",
-  "hello_synchronization",
-  "compute_example",
+    # "example_cube",
+    # "example_fish",
+    # "hello_compute",
+    # "hello_workgroups",
+    # "hello_synchronization",
+    # "compute_example",
+    "sph_particles",
 ]
 resolver = "2"
 
@@ -17,7 +18,6 @@ opt-level = 3
 
 [profile.release]
 opt-level = 'z'
-lto = true
 codegen-units = 1
 
 [workspace.dependencies]
