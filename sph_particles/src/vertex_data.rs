@@ -7,10 +7,10 @@ pub enum BindGroupIndex {
 
 pub enum VertexDataLocation {
     Position = 0,
-    Velocity = 1,
-    Force = 2,
-    Density = 3,
-    SupportRadius = 4,
+    Density = 1,
+    Velocity = 2,
+    SupportRadius = 3,
+    Force = 4,
     ParticleRadius = 5,
 }
 

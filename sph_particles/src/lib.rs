@@ -122,6 +122,19 @@ impl State {
         info!("adapter features: {:?}", adapter.features());
         info!("device limits: {:?}", device.limits());
 
+        // may fail on some devices
+        info!(
+            "flags.contains VERTEX_STORAGE: {:?}",
+            adapter
+                .get_downlevel_capabilities()
+                .flags
+                .contains(wgpu::DownlevelFlags::VERTEX_STORAGE)
+        );
+        info!(
+            "max_storage_buffers_per_shader_stage: {:?}",
+            device.limits().max_storage_buffers_per_shader_stage
+        );
+
         let surface_caps = surface.get_capabilities(&adapter);
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different
         // one will result in all the colors coming out darker. If you want to support non
@@ -144,13 +157,10 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let particle_state = particles::ParticleState::new(1000);
-
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
-        let compute_state =
-            compute::ComputeState::new(&device, &particle_state, &bind_group_layout_cache);
-
+        let particle_state = particles::ParticleState::new(&device, &bind_group_layout_cache, 1000);
+        let compute_state = compute::ComputeState::new(&device, &bind_group_layout_cache);
         let render_state = render::RenderState::new(&device, &config, &bind_group_layout_cache);
 
         let ui_state = UILayer::new(&device, &surface_format, size, scale_factor);
@@ -244,14 +254,14 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // let mut compute_encoder =
-        //     self.device
-        //         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        //             label: Some("Compute Encoder"),
-        //         });
+        let mut compute_encoder =
+            self.device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Compute Encoder"),
+                });
 
-        // self.compute_state
-        //     .compute_pass_particle(&mut compute_encoder);
+        self.compute_state
+            .compute_pass_particle(&mut compute_encoder, &self.particle_state);
 
         let mut render_encoder =
             self.device
@@ -259,8 +269,11 @@ impl State {
                     label: Some("Render Encoder"),
                 });
 
+        // self.render_state
+        //     .render_pass_model(&mut render_encoder, &view, &self.obj_model);
+
         self.render_state
-            .render_pass_model(&mut render_encoder, &view, &self.obj_model);
+            .render_pass_particle(&mut render_encoder, &view, &self.particle_state);
 
         // draw GUI
         let ui_command_buffer =
@@ -269,7 +282,7 @@ impl State {
 
         // submit will accept anything that implements IntoIter
         self.queue.submit(vec![
-            // compute_encoder.finish(),
+            compute_encoder.finish(),
             render_encoder.finish(),
             ui_command_buffer,
         ]);

@@ -3,7 +3,6 @@ use wgpu::{util::DeviceExt, SurfaceConfiguration};
 use crate::{
     camera::Camera,
     model::{Model, Vertex},
-    particles::DrawParticle,
     texture,
     uniforms::{CameraUniform, Instance},
     vertex_data::ShaderVertexData,
@@ -14,7 +13,8 @@ use crate::{
 pub struct BindGroupLayoutCache {
     pub texture_bind_group_layout: wgpu::BindGroupLayout,
     pub camera_bind_group_layout: wgpu::BindGroupLayout,
-    pub particle_bind_group_layout: wgpu::BindGroupLayout,
+    pub particle_render_bind_group_layout: wgpu::BindGroupLayout,
+    pub particle_compute_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl BindGroupLayoutCache {
@@ -59,7 +59,22 @@ impl BindGroupLayoutCache {
                 label: Some("camera_bind_group_layout"),
             });
 
-        let particle_bind_group_layout =
+        let particle_render_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Compute Bind Group Layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let particle_compute_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Compute Bind Group Layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -77,38 +92,19 @@ impl BindGroupLayoutCache {
         Self {
             texture_bind_group_layout,
             camera_bind_group_layout,
-            particle_bind_group_layout,
+            particle_render_bind_group_layout,
+            particle_compute_bind_group_layout,
         }
-    }
-
-    /// This function is used to get the bind group layouts in the order
-    /// used in the render pipeline
-    pub fn get_render_layouts_model(&self) -> Vec<&wgpu::BindGroupLayout> {
-        vec![
-            &self.texture_bind_group_layout,
-            &self.camera_bind_group_layout,
-        ]
-    }
-
-    pub fn get_render_layouts_particle(&self) -> Vec<&wgpu::BindGroupLayout> {
-        vec![
-            &self.texture_bind_group_layout,
-            &self.camera_bind_group_layout,
-            &self.particle_bind_group_layout,
-        ]
-    }
-
-    pub fn get_compute_particles_layouts(&self) -> Vec<&wgpu::BindGroupLayout> {
-        vec![&self.particle_bind_group_layout]
     }
 }
 
 pub struct RenderState {
     pub _mesh_shader: wgpu::ShaderModule,
+    pub _particle_shader: wgpu::ShaderModule,
 
     /// The render pipeline defines the layout of data that the GPU will receive
-    pub render_pipeline_model: wgpu::RenderPipeline,
-    pub render_pipeline_particle: wgpu::RenderPipeline,
+    pub model_render_pipeline: wgpu::RenderPipeline,
+    pub particle_render_pipeline: wgpu::RenderPipeline,
 
     pub instances: Vec<Instance>,
     pub instance_buffer: wgpu::Buffer,
@@ -149,31 +145,42 @@ impl RenderState {
             source: wgpu::ShaderSource::Wgsl(include_str!("../shader/render_mesh.wgsl").into()),
         });
 
+        let particle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Particle Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../shader/render_particle.wgsl").into()),
+        });
+
         // or use this macro:
         // let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
-        let render_pipeline_layout_model =
+        let model_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout Model"),
-                bind_group_layouts: &bind_group_layout_cache.get_render_layouts_model(),
+                bind_group_layouts: &[
+                    &bind_group_layout_cache.texture_bind_group_layout,
+                    &bind_group_layout_cache.camera_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline_layout_particle =
+        let particle_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout Particle"),
-                bind_group_layouts: &bind_group_layout_cache.get_render_layouts_particle(),
+                bind_group_layouts: &[
+                    &bind_group_layout_cache.camera_bind_group_layout,
+                    &bind_group_layout_cache.particle_render_bind_group_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline_model =
+        let model_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline Model"),
-                layout: Some(&render_pipeline_layout_model),
+                layout: Some(&model_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &mesh_shader,
                     entry_point: "vs_main",
-                    buffers: &[crate::model::ModelVertex::desc(), crate::Instance::desc()],
+                    buffers: &[crate::model::ModelVertex::desc(), super::Instance::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &mesh_shader,
@@ -208,17 +215,17 @@ impl RenderState {
                 multiview: None,
             });
 
-        let render_pipeline_particle =
+        let particle_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline Particle"),
-                layout: Some(&render_pipeline_layout_particle),
+                layout: Some(&particle_render_pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &mesh_shader,
+                    module: &particle_shader,
                     entry_point: "vs_main",
-                    buffers: &[crate::model::ModelVertex::desc(), crate::Instance::desc()],
+                    buffers: &[],
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &mesh_shader,
+                    module: &particle_shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
@@ -252,9 +259,9 @@ impl RenderState {
 
         let depth_texture = texture::Texture::create_depth_texture(device, config, "depth_texture");
         let clear_color = wgpu::Color {
-            r: 0.3,
-            g: 0.2,
-            b: 0.1,
+            r: 0.01,
+            g: 0.01,
+            b: 0.01,
             a: 1.0,
         };
 
@@ -274,8 +281,9 @@ impl RenderState {
 
         Self {
             _mesh_shader: mesh_shader,
-            render_pipeline_model,
-            render_pipeline_particle,
+            _particle_shader: particle_shader,
+            model_render_pipeline,
+            particle_render_pipeline,
             instances,
             instance_buffer,
             depth_texture,
@@ -299,7 +307,7 @@ impl RenderState {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         out_tex_view: &wgpu::TextureView,
-        particle_state: super::particles::ParticleState,
+        particle_state: &super::particles::ParticleState,
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
@@ -324,11 +332,19 @@ impl RenderState {
             timestamp_writes: None,
         });
 
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.set_pipeline(&self.particle_render_pipeline);
 
-        render_pass.set_pipeline(&self.render_pipeline_model);
+        use super::particles::DrawParticle;
+        render_pass.draw_particle_instanced(
+            0..1,
+            &self.camera_bind_group,
+            // particle_state.particle_list.len() as u32,
+            particle_state.particle_list.len() as u32,
+            &particle_state.render_bind_group,
+        );
     }
 
+    #[allow(dead_code)]
     pub fn render_pass_model(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -360,7 +376,7 @@ impl RenderState {
 
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
 
-        render_pass.set_pipeline(&self.render_pipeline_model);
+        render_pass.set_pipeline(&self.model_render_pipeline);
 
         use crate::model::DrawModel;
         render_pass.draw_model_instanced(
