@@ -12,16 +12,15 @@ pub struct ComputeState {
 }
 
 impl ComputeState {
-    pub fn new(
+    pub async fn new(
         device: &wgpu::Device,
         bind_group_layout_cache: &super::render::BindGroupLayoutCache,
     ) -> Self {
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Compute Shader"),
-            source: wgpu::ShaderSource::Wgsl(
-                include_str!("../shader/compute_particle.wgsl").into(),
-            ),
-        });
+        let shader = device.create_shader_module(
+            super::wgsl_utils::load_shader("compute_particle.wgsl")
+                .await
+                .unwrap(),
+        );
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Compute Pipeline Layout"),

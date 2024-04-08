@@ -1,3 +1,5 @@
+//!include foo.h.wgsl
+
 // particles.rs Particle
 struct SphParticle {
     position: vec3<f32>,

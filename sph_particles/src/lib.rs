@@ -10,6 +10,7 @@ mod texture;
 mod timer;
 mod uniforms;
 mod vertex_data;
+mod wgsl_utils;
 
 use std::sync::Arc;
 
@@ -162,8 +163,9 @@ impl State {
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
         let particle_state = particles::ParticleState::new(&device, &bind_group_layout_cache, 1000);
-        let compute_state = compute::ComputeState::new(&device, &bind_group_layout_cache);
-        let render_state = render::RenderState::new(&device, &config, &bind_group_layout_cache);
+        let compute_state = compute::ComputeState::new(&device, &bind_group_layout_cache).await;
+        let render_state =
+            render::RenderState::new(&device, &config, &bind_group_layout_cache).await;
 
         let ui_state = UILayer::new(&device, &surface_format, size, scale_factor);
 

@@ -4,3 +4,4 @@ out
 .gitignore
 *.bak
 .venv
+*.wgsl.o

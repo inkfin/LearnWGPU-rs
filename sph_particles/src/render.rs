@@ -117,7 +117,7 @@ pub struct RenderState {
 }
 
 impl RenderState {
-    pub fn new(
+    pub async fn new(
         device: &wgpu::Device,
         config: &SurfaceConfiguration,
         bind_group_layout_cache: &BindGroupLayoutCache,
@@ -140,18 +140,25 @@ impl RenderState {
         });
 
         // init shader
-        let mesh_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Mesh Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shader/render_mesh.wgsl").into()),
-        });
+        let mesh_shader = device.create_shader_module(
+            super::wgsl_utils::load_shader("render_mesh.wgsl")
+                .await
+                .unwrap(),
+        );
 
-        let particle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Particle Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shader/render_particle.wgsl").into()),
-        });
+        let particle_shader = device.create_shader_module(
+            super::wgsl_utils::load_shader("render_particle.wgsl")
+                .await
+                .unwrap(),
+        );
+
+        // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        //     label: Some("Particle Shader"),
+        //     source: wgpu::ShaderSource::Wgsl(include_str!("../shader/shader.wgsl").into()),
+        // });
 
         // or use this macro:
-        // let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        // let shader = device.create_shader_module(wgpu::include_wgsl!("../shader/shader.wgsl"));
 
         let model_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
