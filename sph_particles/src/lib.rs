@@ -9,6 +9,7 @@ mod resources;
 mod texture;
 mod timer;
 mod uniforms;
+mod vertex_data;
 
 use std::sync::Arc;
 
@@ -17,6 +18,7 @@ use gui::UILayer;
 use instant::Instant;
 use model::Model;
 
+use render::BindGroupLayoutCache;
 use tracing::{error, info, warn};
 
 #[cfg(target_arch = "wasm32")]
@@ -30,10 +32,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use crate::{
-    timer::Timer,
-    uniforms::{Instance, InstanceRaw},
-};
+use crate::{timer::Timer, uniforms::Instance};
 
 struct State {
     surface: wgpu::Surface<'static>,
@@ -48,7 +47,12 @@ struct State {
     window: Arc<Window>,
     camera: Camera,
     camera_controller: CameraController,
-    renderer: render::Renderer,
+
+    particle_state: particles::ParticleState,
+
+    bind_group_layout_cache: BindGroupLayoutCache,
+    compute_state: compute::ComputeState,
+    render_state: render::RenderState,
     obj_model: Model,
     ui_state: UILayer,
 }
@@ -140,7 +144,14 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let renderer = render::Renderer::new(&device, &config);
+        let particle_state = particles::ParticleState::new(1000);
+
+        let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
+
+        let compute_state =
+            compute::ComputeState::new(&device, &particle_state, &bind_group_layout_cache);
+
+        let render_state = render::RenderState::new(&device, &config, &bind_group_layout_cache);
 
         let ui_state = UILayer::new(&device, &surface_format, size, scale_factor);
 
@@ -148,13 +159,13 @@ impl State {
             "Amago0.obj",
             &device,
             &queue,
-            &renderer.bind_group_layout_cache.texture_bind_group_layout,
+            &bind_group_layout_cache.texture_bind_group_layout,
         )
         .await
         .unwrap();
 
         let aspect = config.width as f32 / config.height as f32;
-        let camera = Camera::new(aspect, &device);
+        let camera = Camera::new(aspect);
 
         let camera_controller = CameraController::new(2.0);
 
@@ -171,9 +182,12 @@ impl State {
             scale_factor,
             camera,
             camera_controller,
-            renderer,
+            compute_state,
+            render_state,
             obj_model,
             ui_state,
+            particle_state,
+            bind_group_layout_cache,
         }
     }
 
@@ -206,7 +220,7 @@ impl State {
         self.camera.aspect = self.screen_size.width as f32 / self.screen_size.height as f32;
         self.surface.configure(&self.device, &self.surface_config);
 
-        self.renderer.depth_texture = texture::Texture::create_depth_texture(
+        self.render_state.depth_texture = texture::Texture::create_depth_texture(
             &self.device,
             &self.surface_config,
             "depth_texture",
@@ -220,7 +234,7 @@ impl State {
     fn update(&mut self, delta_time: f32) {
         self.camera_controller
             .update_camera_state(&mut self.camera, delta_time);
-        self.renderer.update_uniforms(&self.camera, &self.queue);
+        self.render_state.update_uniforms(&self.camera, &self.queue);
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -230,14 +244,23 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+        // let mut compute_encoder =
+        //     self.device
+        //         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        //             label: Some("Compute Encoder"),
+        //         });
 
-        self.renderer
-            .render_pass_model(&mut encoder, &view, &self.obj_model);
+        // self.compute_state
+        //     .compute_pass_particle(&mut compute_encoder);
+
+        let mut render_encoder =
+            self.device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
+
+        self.render_state
+            .render_pass_model(&mut render_encoder, &view, &self.obj_model);
 
         // draw GUI
         let ui_command_buffer =
@@ -245,7 +268,11 @@ impl State {
                 .render(&self.device, &self.queue, &self.window, &view);
 
         // submit will accept anything that implements IntoIter
-        self.queue.submit(vec![encoder.finish(), ui_command_buffer]);
+        self.queue.submit(vec![
+            // compute_encoder.finish(),
+            render_encoder.finish(),
+            ui_command_buffer,
+        ]);
         output.present();
 
         Ok(())

@@ -1,17 +1,7 @@
-use cgmath::prelude::*;
 use bytemuck::{Pod, Zeroable};
+use cgmath::prelude::*;
 
-use crate::camera::Camera;
-
-pub enum BindGroupIndex {
-    Material = 0,
-    CameraUniforms = 1,
-    ParticleBuffer = 2,
-}
-
-pub trait UniformBuffer {
-    
-}
+use crate::{camera::Camera, vertex_data::ShaderVertexData};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -44,7 +34,7 @@ pub struct Instance {
 
 impl Instance {
     pub fn get_instances_grid(num_instances_per_row: i32, space_between: f32) -> Vec<Instance> {
-        return (0..num_instances_per_row)
+        (0..num_instances_per_row)
             .flat_map(|z| {
                 (0..num_instances_per_row).map(move |x| {
                     let x = space_between * (x as f32 - num_instances_per_row as f32 / 2.0);
@@ -65,22 +55,21 @@ impl Instance {
                     Instance { position, rotation }
                 })
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
     }
 }
 
-impl Instance {
-    pub fn to_raw(&self) -> InstanceRaw {
+impl ShaderVertexData for Instance {
+    type RawType = InstanceRaw;
+    fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
             model: (cgmath::Matrix4::from_translation(self.position)
                 * cgmath::Matrix4::from(self.rotation))
             .into(),
         }
     }
-}
 
-impl InstanceRaw {
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,

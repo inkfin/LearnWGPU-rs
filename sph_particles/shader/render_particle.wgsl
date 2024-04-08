@@ -1,19 +1,21 @@
-struct VertexInput {
-    @location(0) position: vec3<f32>,
-    @location(1) tex_coords: vec2<f32>,
-};
+// particles.rs Particle
+struct SphParticle {
+    position: vec3<f32>,
+    velocity: vec3<f32>,
+    force: vec3<f32>,
+    density: f32,
+    support_radius: f32,
+    particle_radius: f32,
+}
+
+@group(2) @binding(0)
+var<storage, read> particles_in: array<SphParticle>;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) tex_coords: vec2<f32>,
+    @location(0) pixel_position: vec4<f32>,
+    @location(1) @interpolate(flat) particle_radius: f32,
 };
-
-struct ModelMatrix {
-    @location(5) model_matrix_c0: vec4<f32>,
-    @location(6) model_matrix_c1: vec4<f32>,
-    @location(7) model_matrix_c2: vec4<f32>,
-    @location(8) model_matrix_c3: vec4<f32>,
-}
 
 struct CameraUniform {
     view_proj: mat4x4<f32>,
@@ -24,19 +26,13 @@ var<uniform> camera: CameraUniform;
 
 @vertex
 fn vs_main(
-    model: VertexInput,
-    instance: ModelMatrix,
+    @builtin(vertex_index) vertex_index: u32,
 ) -> VertexOutput {
-    let model_matrix = mat4x4<f32>(
-        instance.model_matrix_c0,
-        instance.model_matrix_c1,
-        instance.model_matrix_c2,
-        instance.model_matrix_c3,
-    );
-
     var out: VertexOutput;
-    out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
-    out.tex_coords = model.tex_coords;
+    let position = particles_in[vertex_index].position;
+    out.clip_position = camera.view_proj * vec4<f32>(position, 1.0);
+    out.pixel_position = out.clip_position;
+    out.particle_radius = particles_in[vertex_index].particle_radius;
     return out;
 }
 
@@ -47,6 +43,11 @@ var s_diffuse: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    let distance = distance(in.clip_position.xyz, in.pixel_position.xyz);
+    if distance < in.particle_radius {
+        return vec4<f32>(1.0, 0.0, 0.0, 1.0);
+    } else {
+        return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    }
 }
 

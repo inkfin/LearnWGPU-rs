@@ -4,8 +4,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
 };
 
-use crate::uniforms::CameraUniform;
-
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -23,12 +21,11 @@ pub struct Camera {
     pub fovy: f32,
     pub znear: f32,
     pub zfar: f32,
-
     // render
 }
 
 impl Camera {
-    pub fn new(aspect: f32, device: &wgpu::Device) -> Self {
+    pub fn new(aspect: f32) -> Self {
         Self {
             // position the camera 1 unit up and 2 units back
             // +z is out of the screen
