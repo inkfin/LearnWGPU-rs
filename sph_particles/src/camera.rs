@@ -1,7 +1,10 @@
+use wgpu::util::DeviceExt;
 use winit::{
     event::{ElementState, KeyEvent, WindowEvent},
     keyboard::{KeyCode, PhysicalKey},
 };
+
+use crate::uniforms::CameraUniform;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -11,17 +14,36 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.5, 1.0,
 );
 
+#[derive(Debug)]
 pub struct Camera {
-    pub(crate) eye: cgmath::Point3<f32>,
-    pub(crate) target: cgmath::Point3<f32>,
-    pub(crate) up: cgmath::Vector3<f32>,
-    pub(crate) aspect: f32,
-    pub(crate) fovy: f32,
-    pub(crate) znear: f32,
-    pub(crate) zfar: f32,
+    pub eye: cgmath::Point3<f32>,
+    pub target: cgmath::Point3<f32>,
+    pub up: cgmath::Vector3<f32>,
+    pub aspect: f32,
+    pub fovy: f32,
+    pub znear: f32,
+    pub zfar: f32,
+
+    // render
 }
 
 impl Camera {
+    pub fn new(aspect: f32, device: &wgpu::Device) -> Self {
+        Self {
+            // position the camera 1 unit up and 2 units back
+            // +z is out of the screen
+            eye: (0.0, 1.0, 5.0).into(),
+            // have it look at the origin
+            target: (0.0, 0.0, 0.0).into(),
+            // which way is "up"
+            up: cgmath::Vector3::unit_y(),
+            aspect,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        }
+    }
+
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
@@ -97,7 +119,7 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&self, camera: &mut Camera, delta_time: f32) {
+    pub fn update_camera_state(&self, camera: &mut Camera, delta_time: f32) {
         use cgmath::InnerSpace;
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();

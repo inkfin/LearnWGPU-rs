@@ -8,7 +8,7 @@ struct VertexOutput {
     @location(0) tex_coords: vec2<f32>,
 };
 
-struct InstanceInput {
+struct ModelMatrix {
     @location(5) model_matrix_c0: vec4<f32>,
     @location(6) model_matrix_c1: vec4<f32>,
     @location(7) model_matrix_c2: vec4<f32>,
@@ -25,7 +25,7 @@ var<uniform> camera: CameraUniform;
 @vertex
 fn vs_main(
     model: VertexInput,
-    instance: InstanceInput,
+    instance: ModelMatrix,
 ) -> VertexOutput {
     let model_matrix = mat4x4<f32>(
         instance.model_matrix_c0,
