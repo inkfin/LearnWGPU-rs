@@ -1,11 +1,11 @@
 use std::ops::Range;
 
-use cgmath::{prelude::*, Vector3};
+use cgmath::Vector3;
 use wgpu::util::DeviceExt;
 
 use crate::{
     render::BindGroupLayoutCache,
-    vertex_data::{BindGroupIndex, ShaderVertexData, VertexDataLocation},
+    vertex_data::{ShaderVertexData, VertexDataLocation},
 };
 
 pub const PARTICLE_MAX_SIZE: usize = 1048576; // 2^20

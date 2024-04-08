@@ -53,8 +53,10 @@ struct State {
     bind_group_layout_cache: BindGroupLayoutCache,
     compute_state: compute::ComputeState,
     render_state: render::RenderState,
-    obj_model: Model,
     ui_state: UILayer,
+
+    fish_model: Model,
+    // particle_model: Model,
 }
 
 impl State {
@@ -194,7 +196,7 @@ impl State {
             camera_controller,
             compute_state,
             render_state,
-            obj_model,
+            fish_model: obj_model,
             ui_state,
             particle_state,
             bind_group_layout_cache,

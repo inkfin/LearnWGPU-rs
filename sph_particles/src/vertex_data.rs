@@ -1,9 +1,9 @@
 /// Also bind in [BindGroupLayoutCache](render::BindGroupLayoutCache)
-pub enum BindGroupIndex {
-    Material = 0,
-    CameraUniforms = 1,
-    ParticleBuffer = 2,
-}
+// pub enum BindGroupIndex {
+//     Material = 0,
+//     CameraUniforms = 1,
+//     ParticleBuffer = 2,
+// }
 
 pub enum VertexDataLocation {
     Position = 0,

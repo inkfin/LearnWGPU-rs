@@ -2,8 +2,6 @@ use std::collections::VecDeque;
 // use std::time::{Duration, Instant}; // this will panic on WASM
 use instant::{Duration, Instant};
 
-use tracing::{error, info, warn};
-
 #[derive(Debug)]
 pub struct Timer {
     pub elapse_timer: Instant,

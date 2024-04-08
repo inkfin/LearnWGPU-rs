@@ -3,8 +3,10 @@ use crate::particles::ParticleState;
 const WORKGROUP_SIZE: (u32, u32, u32) = (64, 64, 64);
 
 pub struct ComputeState {
+    #[allow(dead_code)]
     pub shader: wgpu::ShaderModule,
 
+    #[allow(dead_code)]
     pub pipeline_layout: wgpu::PipelineLayout,
     pub pipeline: wgpu::ComputePipeline,
 }
