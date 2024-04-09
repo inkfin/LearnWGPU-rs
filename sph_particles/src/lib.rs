@@ -258,12 +258,24 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        // swap compute buffers before rendering
+        self.particle_state
+            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
+        self.particle_state
+            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
+        self.particle_state
+            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
+        // self.particle_state
+        //     .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
+
         let mut compute_encoder =
             self.device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Compute Encoder"),
                 });
 
+        self.compute_state
+            .compute_pass_particle(&mut compute_encoder, &self.particle_state);
         self.compute_state
             .compute_pass_particle(&mut compute_encoder, &self.particle_state);
 
@@ -439,7 +451,8 @@ pub async fn run() {
                                     Err(e) => eprintln!("{:?}", e),
                                 }
 
-                                timer.get_and_update_render_time();
+                                let render_duration = timer.get_and_update_render_time();
+                                info!("render time: {} sec", render_duration.as_secs_f32());
                             }
                             _ => {}
                         }

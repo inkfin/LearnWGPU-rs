@@ -128,7 +128,7 @@ pub struct ParticleState {
     pub particle_list: Vec<Particle>,
 
     // wgpu state
-    pub particle_buffer: wgpu::Buffer,
+    pub particle_buffers: Vec<wgpu::Buffer>,
     pub particle_render_bind_group: wgpu::BindGroup,
     pub particle_compute_bind_group: wgpu::BindGroup,
 }
@@ -157,6 +157,7 @@ impl ParticleState {
         //     },
         // ];
 
+        // fluids
         let mut particle_list = get_particles_2d(
             (1.0, 0.8),
             (4.0, 6.8),
@@ -167,6 +168,7 @@ impl ParticleState {
             DEFAULT_PARTICLE_RADIUS,
         );
 
+        // walls
         particle_list.append(&mut get_particles_2d(
             (0.0, 0.0),
             (10.0, 0.5),
@@ -204,19 +206,32 @@ impl ParticleState {
             .map(Particle::to_raw)
             .collect::<Vec<_>>();
 
-        let particle_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Particle Buffer"),
-            contents: bytemuck::cast_slice(&particle_data),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        });
+        let particle_buffers = vec![
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Particle Buffer"),
+                contents: bytemuck::cast_slice(&particle_data),
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            }),
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Particle Buffer"),
+                contents: bytemuck::cast_slice(&particle_data),
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            }),
+        ];
 
         let particle_compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Compute Particle Bind Group"),
             layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: particle_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0, // @binding(0) read
+                    resource: particle_buffers[0].as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1, // @binding(1) write
+                    resource: particle_buffers[1].as_entire_binding(),
+                },
+            ],
         });
 
         let particle_render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -224,16 +239,46 @@ impl ParticleState {
             layout: &bind_group_layout_cache.particle_render_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: particle_buffer.as_entire_binding(),
+                resource: particle_buffers[0].as_entire_binding(),
             }],
         });
 
         Self {
             particle_list,
-            particle_buffer,
+            particle_buffers,
             particle_compute_bind_group,
             particle_render_bind_group,
         }
+    }
+
+    pub fn swap_compute_buffers(
+        &mut self,
+        device: &wgpu::Device,
+        bind_group_layout_cache: &BindGroupLayoutCache,
+    ) {
+        self.particle_buffers.swap(0, 1);
+        self.particle_compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Compute Particle Bind Group"),
+            layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0, // @binding(0) read
+                    resource: self.particle_buffers[0].as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1, // @binding(1) write
+                    resource: self.particle_buffers[1].as_entire_binding(),
+                },
+            ],
+        });
+        self.particle_render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Render Particle Bind Group"),
+            layout: &bind_group_layout_cache.particle_render_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: self.particle_buffers[0].as_entire_binding(),
+            }],
+        });
     }
 }
 

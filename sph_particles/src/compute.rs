@@ -2,7 +2,7 @@ use crate::particles::ParticleState;
 
 use super::resources::load_shader;
 
-const WORKGROUP_SIZE: (u32, u32, u32) = (4096, 128, 1);
+const WORKGROUP_SIZE: (u32, u32, u32) = (4096, 1024, 1); // total 4194304
 
 pub struct ComputeState {
     #[allow(dead_code)]
