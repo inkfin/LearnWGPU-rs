@@ -8,6 +8,8 @@ use crate::{
     vertex_data::ShaderVertexData,
 };
 
+use super::resources::load_shader;
+
 /// The `BindGroupLayout` is where to define one group(index) data
 /// The index is set in order of get_bind_group_layouts() vectors
 pub struct BindGroupLayoutCache {
@@ -140,17 +142,11 @@ impl RenderState {
         });
 
         // init shader
-        let mesh_shader = device.create_shader_module(
-            super::wgsl_utils::load_shader("render_mesh.wgsl")
-                .await
-                .unwrap(),
-        );
+        let mesh_shader =
+            device.create_shader_module(load_shader("render_mesh.wgsl").await.unwrap());
 
-        let particle_shader = device.create_shader_module(
-            super::wgsl_utils::load_shader("render_particle_2d.wgsl")
-                .await
-                .unwrap(),
-        );
+        let particle_shader =
+            device.create_shader_module(load_shader("render_particle_2d.wgsl").await.unwrap());
 
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         //     label: Some("Particle Shader"),

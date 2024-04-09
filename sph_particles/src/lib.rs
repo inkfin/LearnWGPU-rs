@@ -11,7 +11,6 @@ mod texture;
 mod timer;
 mod uniforms;
 mod vertex_data;
-mod wgsl_utils;
 
 use std::sync::Arc;
 
