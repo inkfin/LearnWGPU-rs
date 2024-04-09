@@ -29,6 +29,10 @@ impl Timer {
         }
     }
 
+    pub fn now(&self) -> Duration {
+        self.elapse_timer.elapsed()
+    }
+
     pub fn get_all_events_time(&self) -> Duration {
         self.all_events_timer.elapsed()
     }

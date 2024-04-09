@@ -393,6 +393,8 @@ pub async fn run() {
         closure.forget();
     }
 
+    let mut last_frame_time = timer.now().as_secs_f32();
+
     event_loop
         .run(move |event, target| {
             // Have the closure take ownership of the resources.
@@ -409,6 +411,12 @@ pub async fn run() {
                 .ui_state
                 .egui_platform
                 .update_time(timer.elapse_timer.elapsed().as_secs_f64());
+            state.ui_state.frame_history.on_new_frame(
+                timer.now().as_secs_f64(),
+                Some(timer.now().as_secs_f32() - last_frame_time),
+            );
+            last_frame_time = timer.now().as_secs_f32();
+
             if state.ui_state.egui_platform.captures_event(&event) {
                 return;
             }
@@ -451,8 +459,7 @@ pub async fn run() {
                                     Err(e) => eprintln!("{:?}", e),
                                 }
 
-                                let render_duration = timer.get_and_update_render_time();
-                                info!("render time: {} sec", render_duration.as_secs_f32());
+                                timer.get_and_update_render_time();
                             }
                             _ => {}
                         }
