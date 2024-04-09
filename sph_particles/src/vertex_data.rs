@@ -5,15 +5,6 @@
 //     ParticleBuffer = 2,
 // }
 
-pub enum VertexDataLocation {
-    Position = 0,
-    Density = 1,
-    Velocity = 2,
-    SupportRadius = 3,
-    Force = 4,
-    ParticleRadius = 5,
-}
-
 pub trait ShaderVertexData {
     type RawType;
     fn to_raw(&self) -> Self::RawType;

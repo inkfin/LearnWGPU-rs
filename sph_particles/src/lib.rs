@@ -1,5 +1,6 @@
 mod camera;
 mod compute;
+mod grid_2d;
 mod grid_3d;
 mod gui;
 mod model;
@@ -162,7 +163,7 @@ impl State {
 
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
-        let particle_state = particles::ParticleState::new(&device, &bind_group_layout_cache, 1000);
+        let particle_state = particles::ParticleState::new(&device, &bind_group_layout_cache);
         let compute_state = compute::ComputeState::new(&device, &bind_group_layout_cache).await;
         let render_state =
             render::RenderState::new(&device, &config, &bind_group_layout_cache).await;

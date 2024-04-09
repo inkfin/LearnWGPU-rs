@@ -10,7 +10,7 @@ pub struct Grid3D {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct RawGrid3D {
+pub struct Grid3DRaw {
     pub cell_size: [f32; 3],
     pub boundary_upper: [f32; 3],
     pub boundary_lower: [f32; 3],
@@ -18,9 +18,9 @@ pub struct RawGrid3D {
 }
 
 impl ShaderVertexData for Grid3D {
-    type RawType = RawGrid3D;
-    fn to_raw(&self) -> RawGrid3D {
-        RawGrid3D {
+    type RawType = Grid3DRaw;
+    fn to_raw(&self) -> Grid3DRaw {
+        Grid3DRaw {
             cell_size: self.cell_size.into(),
             boundary_upper: self.boundary_upper.into(),
             boundary_lower: self.boundary_lower.into(),
@@ -29,7 +29,30 @@ impl ShaderVertexData for Grid3D {
     }
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
-        todo!()
+        use std::mem;
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Grid3DRaw>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                // cell_size
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                    shader_location: 0,
+                },
+                // boundary_upper
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    format: wgpu::VertexFormat::Float32x3,
+                    shader_location: 1,
+                },
+                // boundary_lower
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    format: wgpu::VertexFormat::Float32x3,
+                    shader_location: 2,
+                },
+            ],
+        }
     }
 }
-

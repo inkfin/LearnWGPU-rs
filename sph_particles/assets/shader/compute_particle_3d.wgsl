@@ -4,8 +4,9 @@ struct SphParticle {
     density: f32,
     velocity: vec3<f32>,
     support_radius: f32,
-    force: vec3<f32>,
+    pressure: vec3<f32>,
     particle_radius: f32,
+    ptype: u32,
 }
 
 @group(0) @binding(0)

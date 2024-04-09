@@ -147,7 +147,7 @@ impl RenderState {
         );
 
         let particle_shader = device.create_shader_module(
-            super::wgsl_utils::load_shader("render_particle.wgsl")
+            super::wgsl_utils::load_shader("render_particle_2d.wgsl")
                 .await
                 .unwrap(),
         );
@@ -347,7 +347,7 @@ impl RenderState {
             &self.camera_bind_group,
             // particle_state.particle_list.len() as u32,
             particle_state.particle_list.len() as u32,
-            &particle_state.render_bind_group,
+            &particle_state.particle_render_bind_group,
         );
     }
 
