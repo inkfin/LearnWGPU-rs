@@ -9,6 +9,7 @@ struct SphParticle {
     pressure: vec3<f32>,
     particle_radius: f32,
     ptype: u32, // 0 for fluid, 1 for boundary
+    _pad: array<f32, 3>,
 }
 
 const GRAVITY: vec3f = vec3f(0.0, -9.8, 0.0);

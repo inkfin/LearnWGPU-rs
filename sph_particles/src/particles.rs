@@ -5,8 +5,6 @@ use wgpu::util::DeviceExt;
 
 use crate::{render::BindGroupLayoutCache, vertex_data::ShaderVertexData};
 
-pub const PARTICLE_MAX_SIZE: usize = 1048576; // 2^20
-
 const DEFAULT_SUPPORT_RADIUS: f32 = 0.1;
 const DEFAULT_PARTICLE_RADIUS: f32 = 0.1;
 
@@ -31,9 +29,7 @@ pub struct ParticleRaw {
     pressure: [f32; 3],
     particle_radius: f32,
     ptype: u32,
-    _pad0: f32,
-    _pad1: f32,
-    _pad2: f32,
+    _pad: [f32; 3],
 }
 
 impl Default for Particle {
@@ -72,9 +68,7 @@ impl ShaderVertexData for Particle {
             support_radius: self.support_radius,
             particle_radius: self.particle_radius,
             ptype: self.ptype,
-            _pad0: 0.0,
-            _pad1: 0.0,
-            _pad2: 0.0,
+            _pad: [0.0, 0.0, 0.0],
         }
     }
 
@@ -138,21 +132,30 @@ impl ParticleState {
         // --------------------------------------
         // Init particles
 
+        tracing::info!(
+            "ParticleRaw Size: {}",
+            std::mem::size_of::<ParticleRaw>() as wgpu::BufferAddress
+        );
         // let particle_list = vec![
         //     Particle {
-        //         position: Vector3::new(-1.0, 0.0, 0.0),
+        //         position: Vector3::new(4.0, 5.0, 0.0),
+        //         particle_radius: 0.3,
+        //         ptype: 1,
         //         ..Default::default()
         //     },
         //     Particle {
-        //         position: Vector3::new(0.0, 0.0, 0.0),
+        //         position: Vector3::new(5.0, 5.0, 0.0),
+        //         ptype: 1,
         //         ..Default::default()
         //     },
         //     Particle {
-        //         position: Vector3::new(1.0, 1.0, 0.0),
+        //         position: Vector3::new(6.0, 5.0, 0.0),
+        //         ptype: 1,
         //         ..Default::default()
         //     },
         //     Particle {
-        //         position: Vector3::new(1.0, 0.0, 0.0),
+        //         position: Vector3::new(5.0, 6.0, 0.0),
+        //         ptype: 1,
         //         ..Default::default()
         //     },
         // ];
