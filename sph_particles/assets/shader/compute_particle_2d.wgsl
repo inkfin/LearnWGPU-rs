@@ -48,7 +48,6 @@ fn cs_main(
         // last: update particles
     } // else don't update
 
-    // particles_in[id] = p_next;
     particles_out[id] = p_next;
 }
 

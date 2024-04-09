@@ -14,7 +14,7 @@ pub struct UILayer {
     pub frame_history: FrameHistory,
 }
 
-const SCALE: f64 = 0.9;
+const SCALE: f64 = 0.7;
 
 impl UILayer {
     pub fn new(

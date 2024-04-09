@@ -261,12 +261,6 @@ impl State {
         // swap compute buffers before rendering
         self.particle_state
             .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
-        self.particle_state
-            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
-        self.particle_state
-            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
-        // self.particle_state
-        //     .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
 
         let mut compute_encoder =
             self.device
