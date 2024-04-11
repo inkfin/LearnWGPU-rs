@@ -7,6 +7,7 @@ members = [
     # "hello_synchronization",
     # "compute_example",
     "sph_particles",
+    "biotonic_sort",
 ]
 resolver = "2"
 
