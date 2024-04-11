@@ -8,6 +8,8 @@ use crate::{
     vertex_data::ShaderVertexData,
 };
 
+use super::resources::load_shader;
+
 /// The `BindGroupLayout` is where to define one group(index) data
 /// The index is set in order of get_bind_group_layouts() vectors
 pub struct BindGroupLayoutCache {
@@ -61,7 +63,7 @@ impl BindGroupLayoutCache {
 
         let particle_render_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Compute Bind Group Layout"),
+                label: Some("Particle Bind Group Layout for Render"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,
@@ -76,17 +78,31 @@ impl BindGroupLayoutCache {
 
         let particle_compute_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Compute Bind Group Layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
+                label: Some("Particle Bind Group Layout for Compute"),
+                entries: &[
+                    // read
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    // write
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
             });
 
         Self {
@@ -140,17 +156,11 @@ impl RenderState {
         });
 
         // init shader
-        let mesh_shader = device.create_shader_module(
-            super::wgsl_utils::load_shader("render_mesh.wgsl")
-                .await
-                .unwrap(),
-        );
+        let mesh_shader =
+            device.create_shader_module(load_shader("render_mesh.wgsl").await.unwrap());
 
-        let particle_shader = device.create_shader_module(
-            super::wgsl_utils::load_shader("render_particle_2d.wgsl")
-                .await
-                .unwrap(),
-        );
+        let particle_shader =
+            device.create_shader_module(load_shader("render_particle_2d.wgsl").await.unwrap());
 
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         //     label: Some("Particle Shader"),

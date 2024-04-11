@@ -9,6 +9,7 @@ struct SphParticle {
     pressure: vec3<f32>,
     particle_radius: f32,
     ptype: u32,
+    _pad: array<f32, 3>,
 }
 
 @group(1) @binding(0)

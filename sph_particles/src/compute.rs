@@ -1,6 +1,8 @@
 use crate::particles::ParticleState;
 
-const WORKGROUP_SIZE: (u32, u32, u32) = (4096, 128, 1);
+use super::resources::load_shader;
+
+const WORKGROUP_SIZE: (u32, u32, u32) = (4096, 1024, 1); // total 4194304
 
 pub struct ComputeState {
     #[allow(dead_code)]
@@ -16,11 +18,8 @@ impl ComputeState {
         device: &wgpu::Device,
         bind_group_layout_cache: &super::render::BindGroupLayoutCache,
     ) -> Self {
-        let shader = device.create_shader_module(
-            super::wgsl_utils::load_shader("compute_particle_2d.wgsl")
-                .await
-                .unwrap(),
-        );
+        let shader =
+            device.create_shader_module(load_shader("compute_particle_2d.wgsl").await.unwrap());
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Compute Pipeline Layout"),

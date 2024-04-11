@@ -11,7 +11,6 @@ mod texture;
 mod timer;
 mod uniforms;
 mod vertex_data;
-mod wgsl_utils;
 
 use std::sync::Arc;
 
@@ -259,12 +258,18 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        // swap compute buffers before rendering
+        self.particle_state
+            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
+
         let mut compute_encoder =
             self.device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Compute Encoder"),
                 });
 
+        self.compute_state
+            .compute_pass_particle(&mut compute_encoder, &self.particle_state);
         self.compute_state
             .compute_pass_particle(&mut compute_encoder, &self.particle_state);
 
@@ -382,6 +387,8 @@ pub async fn run() {
         closure.forget();
     }
 
+    let mut last_frame_time = timer.now().as_secs_f32();
+
     event_loop
         .run(move |event, target| {
             // Have the closure take ownership of the resources.
@@ -398,6 +405,12 @@ pub async fn run() {
                 .ui_state
                 .egui_platform
                 .update_time(timer.elapse_timer.elapsed().as_secs_f64());
+            state.ui_state.frame_history.on_new_frame(
+                timer.now().as_secs_f64(),
+                Some(timer.now().as_secs_f32() - last_frame_time),
+            );
+            last_frame_time = timer.now().as_secs_f32();
+
             if state.ui_state.egui_platform.captures_event(&event) {
                 return;
             }
