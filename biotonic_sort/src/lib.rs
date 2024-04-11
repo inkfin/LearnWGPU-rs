@@ -116,7 +116,13 @@ pub async fn run() {
         compute_pass.set_bind_group(0, &bind_group, &[]);
         /* Note that since each workgroup will cover both arrays, we only need to
         cover the length of one array. */
-        compute_pass.dispatch_workgroups(local_input.len() as u32, 1, 1);
+
+        let x = local_input.len() as u32;
+        let n = (local_input.len() as f32).log2() as u32 + 1;
+
+        let y = n - 1; // bubble
+                       // let y = n * (n + 1) / 2; // biotomic
+        compute_pass.dispatch_workgroups(x, y, 1);
     }
     queue.submit(Some(command_encoder.finish()));
 
