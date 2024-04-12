@@ -13,7 +13,8 @@ use std::time::Instant;
 use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 
-const ARRAY_LENGTH: usize = 1usize << 22;
+// buffer maximum size 2^25
+const ARRAY_LENGTH: usize = 1usize << 25;
 
 // Bubble sort
 // #[repr(C)]
@@ -213,7 +214,14 @@ pub async fn run() {
                 compute_pass.set_pipeline(&pipeline);
                 compute_pass.set_bind_group(0, &bind_group, &[]);
 
-                compute_pass.dispatch_workgroups((len / 128).max(1), 1, 1);
+                let (x, y, z) = if log_len <= 8 {
+                    (1, 1, 1)
+                } else {
+                    let log_len_global = log_len - 8;
+                    let len_global_div2 = 1 << (log_len_global / 2);
+                    (len_global_div2 * 2, len_global_div2, 1)
+                };
+                compute_pass.dispatch_workgroups(x, y, z);
             }
             queue.submit(Some(command_encoder.finish()));
         }

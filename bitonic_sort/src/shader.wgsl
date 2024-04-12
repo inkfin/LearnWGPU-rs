@@ -108,10 +108,12 @@ fn sort_bitonic(ix: u32) {
 fn main(
     @builtin(local_invocation_id) lid: vec3<u32>,
     @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(workgroup_id) wid: vec3<u32>
+    @builtin(num_workgroups) nw: vec3<u32>
 ) {
 
-    let ix = gid.x; // denotes index in array
+    let ix = gid.x * nw.y + gid.y; // denotes index in array
+    // let ix = gid.x;
+    // if gid.y != 0 { return; }
     if ix >= arrayLength(&arr) {
         return;
     }
