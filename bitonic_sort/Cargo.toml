@@ -1,5 +1,5 @@
 [package]
-name = "biotonic_sort"
+name = "bitonic_sort"
 edition = "2021"
 version = "0.1.0"
 
@@ -7,7 +7,7 @@ version = "0.1.0"
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "biotonic_sort"
+name = "bitonic_sort"
 path = "src/main.rs"
 
 [dependencies]
