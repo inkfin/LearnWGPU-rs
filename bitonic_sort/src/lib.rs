@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 
 // buffer maximum size 2^25
-const ARRAY_LENGTH: usize = 1usize << 8;
+const ARRAY_LENGTH: usize = 1usize << 17;
 
 // Bubble sort
 // #[repr(C)]
@@ -200,7 +200,24 @@ pub async fn run() {
 
     // Bitonic sort
     let log_len = (local_input.len() as f32).log2() as u32;
-    for num_stage in 1..=log_len {
+    // workgroup size
+    let (x, y, z) = if log_len <= 8 {
+        (1, 1, 1)
+    } else {
+        let log_len_global = log_len - 8;
+        let len_global_div2 = 1 << (log_len_global / 2);
+        if log_len_global % 2 == 0 {
+            (len_global_div2, len_global_div2, 1)
+        } else {
+            (len_global_div2 * 2, len_global_div2, 1)
+        }
+    };
+
+    // for num_stage in 1..=log_len
+    let mut num_stage = 0;
+    while num_stage < log_len {
+        num_stage += 1;
+
         let log_num_group_init = log_len - num_stage;
         uniforms_data.log_group_init = log_num_group_init;
 
@@ -220,21 +237,11 @@ pub async fn run() {
                     });
                 compute_pass.set_pipeline(&pipeline);
                 compute_pass.set_bind_group(0, &bind_group, &[]);
-                let (x, y, z) = if log_len <= 8 {
-                    (1, 1, 1)
-                } else {
-                    let log_len_global = log_len - 8;
-                    let len_global_div2 = 1 << (log_len_global / 2);
-                    if log_len_global % 2 == 0 {
-                        (len_global_div2, len_global_div2, 1)
-                    } else {
-                        (len_global_div2 * 2, len_global_div2, 1)
-                    }
-                };
                 compute_pass.dispatch_workgroups(x, y, z);
             }
             queue.submit(Some(command_encoder.finish()));
-            break;
+            num_stage = 8;
+            continue;
         }
 
         // apply global workgroups compute
@@ -262,18 +269,6 @@ pub async fn run() {
                     });
                 compute_pass.set_pipeline(&pipeline);
                 compute_pass.set_bind_group(0, &bind_group, &[]);
-
-                let (x, y, z) = if log_len <= 8 {
-                    (1, 1, 1)
-                } else {
-                    let log_len_global = log_len - 8;
-                    let len_global_div2 = 1 << (log_len_global / 2);
-                    if log_len_global % 2 == 0 {
-                        (len_global_div2, len_global_div2, 1)
-                    } else {
-                        (len_global_div2 * 2, len_global_div2, 1)
-                    }
-                };
                 compute_pass.dispatch_workgroups(x, y, z);
             }
             queue.submit(Some(command_encoder.finish()));

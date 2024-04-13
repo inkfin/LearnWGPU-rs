@@ -100,10 +100,7 @@ fn local_flip(ix: u32, height: u32) {
 
 fn sort_bitonic(ix: u32) {
     let size = arrayLength(&arr);
-    let num_group_curr = 1u << uniforms.log_group_curr;
-    let num_group_init = 1u << uniforms.log_group_init;
     let num_group_max = 1u << (uniforms.log_len - 1);
-    let height = size / num_group_curr;
 
     // local workgroup shared memory acceleration
     // 256 threads, can handle group_size 256, 128, 64, 32, 16, 8, 4, 2
@@ -146,9 +143,15 @@ fn sort_bitonic(ix: u32) {
             arr[ix] = arr_shared[local_ix];
         }
         case GLOBAL_FLIP: {
+            let num_group_curr = 1u << uniforms.log_group_curr;
+            let num_group_init = 1u << uniforms.log_group_init;
+            let height = size / num_group_curr;
             big_flip(ix, height);
         }
         case GLOBAL_DISPERSE: {
+            let num_group_curr = 1u << uniforms.log_group_curr;
+            let num_group_init = 1u << uniforms.log_group_init;
+            let height = size / num_group_curr;
             big_disperse(ix, height);
         }
         default: {}
