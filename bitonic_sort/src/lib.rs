@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 use wgpu::util::DeviceExt;
 
 // buffer maximum size 2^25
-const ARRAY_LENGTH: usize = 1usize << 25;
+const ARRAY_LENGTH: usize = 1usize << 8;
 
 // Bubble sort
 // #[repr(C)]
@@ -30,6 +30,13 @@ struct Uniforms {
     log_len: u32,
     log_group_init: u32,
     log_group_curr: u32,
+    compute_mode: u32, // 0: global, 1: local
+}
+
+enum ComputeMode {
+    GlobalFlip = 0,
+    GlobalDisperse = 1,
+    LocalMode = 2,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
@@ -85,6 +92,7 @@ pub async fn run() {
         log_len: (ARRAY_LENGTH as f32).log2() as u32,
         log_group_init: (ARRAY_LENGTH as f32).log2() as u32 - 1,
         log_group_curr: 1,
+        compute_mode: ComputeMode::GlobalFlip as u32,
     };
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -167,8 +175,8 @@ pub async fn run() {
 
     //----------------------------------------------------------
 
-    let len = local_input.len() as u32;
     // Bubble sort
+    // let len = local_input.len() as u32;
     // for i in 0..len - 1 {
     //     // update uniform buffer
     //     uniforms_data.sort_even = i % 2;
@@ -196,11 +204,52 @@ pub async fn run() {
         let log_num_group_init = log_len - num_stage;
         uniforms_data.log_group_init = log_num_group_init;
 
+        // when the number of elements is less than 2^8, apply local workgroups compute acceleration
+        if log_len - log_num_group_init <= 8 {
+            // apply local workgroups compute acceleration
+            uniforms_data.log_group_curr = log_num_group_init;
+            uniforms_data.compute_mode = ComputeMode::LocalMode as u32;
+            queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms_data]));
+            let mut command_encoder =
+                device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+            {
+                let mut compute_pass =
+                    command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                        label: Some("Compute Pass"),
+                        timestamp_writes: None,
+                    });
+                compute_pass.set_pipeline(&pipeline);
+                compute_pass.set_bind_group(0, &bind_group, &[]);
+                let (x, y, z) = if log_len <= 8 {
+                    (1, 1, 1)
+                } else {
+                    let log_len_global = log_len - 8;
+                    let len_global_div2 = 1 << (log_len_global / 2);
+                    if log_len_global % 2 == 0 {
+                        (len_global_div2, len_global_div2, 1)
+                    } else {
+                        (len_global_div2 * 2, len_global_div2, 1)
+                    }
+                };
+                compute_pass.dispatch_workgroups(x, y, z);
+            }
+            queue.submit(Some(command_encoder.finish()));
+            break;
+        }
+
+        // apply global workgroups compute
         for num_step in 0..num_stage {
             let log_num_group = log_num_group_init + num_step;
+            let is_first_step = num_step == 0;
+            let is_first_group = log_num_group == log_len - 1;
 
             // update uniform buffer
             uniforms_data.log_group_curr = log_num_group;
+            uniforms_data.compute_mode = if !is_first_group && is_first_step {
+                ComputeMode::GlobalFlip as u32
+            } else {
+                ComputeMode::GlobalDisperse as u32
+            };
             queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms_data]));
 
             let mut command_encoder =
@@ -219,7 +268,11 @@ pub async fn run() {
                 } else {
                     let log_len_global = log_len - 8;
                     let len_global_div2 = 1 << (log_len_global / 2);
-                    (len_global_div2 * 2, len_global_div2, 1)
+                    if log_len_global % 2 == 0 {
+                        (len_global_div2, len_global_div2, 1)
+                    } else {
+                        (len_global_div2 * 2, len_global_div2, 1)
+                    }
                 };
                 compute_pass.dispatch_workgroups(x, y, z);
             }
@@ -251,10 +304,12 @@ pub async fn run() {
     // bubble_sort(&mut sorted);
 
     time_list.push(timer.elapsed().as_secs_f64()); // 3
-    let timer = Instant::now();
+    let _timer = Instant::now();
 
-    // log::info!("Output of merge sort: {sorted:?}");
-    // log::info!("Output of bitonic_sort: {bitonic_sorted:?}");
+    if ARRAY_LENGTH <= 2usize.pow(4) {
+        log::info!("Output of merge sort: {sorted:?}");
+        log::info!("Output of bitonic_sort: {bitonic_sorted:?}");
+    }
 
     assert!(sorted == bitonic_sorted);
     log::info!("Bitonic sort successful!");

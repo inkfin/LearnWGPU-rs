@@ -25,6 +25,17 @@ Implement parallel bitonic sort algorithms with Rust and Wgpu.
 [2024-04-12T09:57:18Z INFO  bitonic_sort] CPU sorting takes: 0.0217035s
 ```
 
+- size = $2^{17}$ (release mode)
+  - Similar performance
+
+```log
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Bitonic sort successful!
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Initialization takes: 0.3913661s
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Wgpu computation takes: 0.0090767s
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Data transfer takes: 0.000544s
+[2024-04-12T21:33:44Z INFO  bitonic_sort] CPU sorting takes: 0.0098242s
+```
+
 - size = $2^{25}$
   - GPU faster than CPU
 
@@ -35,4 +46,3 @@ Implement parallel bitonic sort algorithms with Rust and Wgpu.
 [2024-04-12T09:53:07Z INFO  bitonic_sort] Data transfer takes: 0.9909169s
 [2024-04-12T09:53:07Z INFO  bitonic_sort] CPU sorting takes: 4.1491945s
 ```
-

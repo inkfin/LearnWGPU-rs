@@ -1,4 +1,9 @@
 // Sort algorithms in Parallel World
+// # Bubble sort
+// Bubble sort based on even-odd sort, which is a parallel version of bubble sort.
+//     >> miserably slow
+//     iter1: sort [even, odd] pairs
+//     iter2: sort [odd, even] pairs
 //
 // # Bitonic sort
 // etc: 16 elements
@@ -13,6 +18,7 @@
 //         3.2: sort 2 pairs [0..3], [1..2]
 //         3.3: sort 1 pair [0..1]
 
+const workgroup_len: u32 = 256;
 
 @group(0)
 @binding(0)
@@ -28,30 +34,39 @@ struct Uniforms {
     log_len: u32, // 2^log_len = arrayLength
     log_group_init: u32, // 2^log_group = num_group
     log_group_curr: u32,
+    compute_mode: u32,
 };
+
+const GLOBAL_FLIP: u32 = 0;
+const GLOBAL_DISPERSE: u32 = 1;
+const LOCAL_MODE: u32 = 2;
 
 @group(0)
 @binding(1)
 var<uniform> uniforms: Uniforms;
 
 // use workgroup shared memory to accelerate load and write within workgroups
-// var<workgroup> shared: array<f32, 256>;
-
-fn swap_value(i: u32, j: u32) {
-    let tmp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = tmp;
-}
+var<workgroup> arr_shared: array<f32, workgroup_len>;
 
 fn compare_and_swap(i: u32, j: u32) {
     if arr[i] > arr[j] {
-        swap_value(i, j);
+        let tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+    }
+}
+
+fn compare_and_swap_local(i: u32, j: u32) {
+    if arr_shared[i] > arr_shared[j] {
+        let tmp = arr_shared[i];
+        arr_shared[i] = arr_shared[j];
+        arr_shared[j] = tmp;
     }
 }
 
 fn big_disperse(ix: u32, height: u32) {
     let base = ix / height * height;
-    let half_height = height / 2;
+    let half_height = height >> 1u;
     if ix < base + half_height {
         compare_and_swap(ix, ix + half_height);
     }
@@ -60,23 +75,83 @@ fn big_disperse(ix: u32, height: u32) {
 fn big_flip(ix: u32, height: u32) {
     let base = ix / height * height;
     let offset = ix - base;
-    let half_height = height / 2;
+    let half_height = height >> 1u;
     if ix < base + half_height {
         compare_and_swap(ix, base + height - 1 - offset);
     }
 }
 
+fn local_disperse(ix: u32, height: u32) {
+    let base = ix / height * height;
+    let half_height = height >> 1u;
+    if ix < base + half_height {
+        compare_and_swap_local(ix, ix + half_height);
+    }
+}
+
+fn local_flip(ix: u32, height: u32) {
+    let base = ix / height * height;
+    let offset = ix - base;
+    let half_height = height >> 1u;
+    if ix < base + half_height {
+        compare_and_swap_local(ix, base + height - 1 - offset);
+    }
+}
+
 fn sort_bitonic(ix: u32) {
     let size = arrayLength(&arr);
-    let num_group_init = 1u << uniforms.log_group_init;
     let num_group_curr = 1u << uniforms.log_group_curr;
+    let num_group_init = 1u << uniforms.log_group_init;
+    let num_group_max = 1u << (uniforms.log_len - 1);
     let height = size / num_group_curr;
-    let step = uniforms.log_group_init - uniforms.log_group_curr + 1;
 
-    if (step == 1) && (uniforms.log_group_init != uniforms.log_len - 1) {
-        big_flip(ix, height);
-    } else {
-        big_disperse(ix, height);
+    // local workgroup shared memory acceleration
+    // 256 threads, can handle group_size 256, 128, 64, 32, 16, 8, 4, 2
+    // only use log_group_init, since we're going to apply for loop here
+    switch uniforms.compute_mode {
+        case LOCAL_MODE: {
+            // load data to shared memory
+            let local_ix = ix % workgroup_len;
+            arr_shared[local_ix] = arr[ix];
+
+            // workgroup shared memory barrier
+            workgroupBarrier();
+
+            for (var num_stage = 1u; num_stage <= 8u; num_stage++) {
+                let num_group_init = size >> num_stage;
+                for (var num_step = 0u; num_step < num_stage; num_step++) {
+                    let num_group_curr = num_group_init << num_step;
+                    let height = size / num_group_curr;
+
+                    // let log_num_group = uniforms.log_group_init + num_step;
+                    let is_first_group = num_group_init == num_group_max;
+                    let is_first_step = num_group_init == num_group_curr;
+
+                    if !is_first_group && is_first_step {
+                        local_flip(local_ix, height);
+                    } else {
+                        local_disperse(local_ix, height);
+                    }
+
+                    workgroupBarrier();
+                }
+                // early break
+                if num_group_init == 1 {
+                    break;
+                }
+            }
+
+            workgroupBarrier();
+            // write back to global memory
+            arr[ix] = arr_shared[local_ix];
+        }
+        case GLOBAL_FLIP: {
+            big_flip(ix, height);
+        }
+        case GLOBAL_DISPERSE: {
+            big_disperse(ix, height);
+        }
+        default: {}
     }
 }
 
@@ -96,22 +171,21 @@ fn sort_bitonic(ix: u32) {
 //         i = ix - 1; j = ix;
 //     }
 //     // swap if left > right
-//     if arr[i] > arr[j] {
-//         swap_value(i, j);
-//     }
+//     compute_and_swap(i, j);
 // }
 
 
 /// Grantee input size is power of 2
 @compute
-@workgroup_size(256, 1, 1)
+@workgroup_size(workgroup_len, 1, 1)
 fn main(
     @builtin(local_invocation_id) lid: vec3<u32>,
     @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(num_workgroups) nw: vec3<u32>
+    @builtin(workgroup_id) wid: vec3<u32>,
+    @builtin(num_workgroups) num_wg: vec3<u32>
 ) {
 
-    let ix = gid.x * nw.y + gid.y; // denotes index in array
+    let ix = gid.x + gid.y * num_wg.x * workgroup_len; // denotes index in array
     // let ix = gid.x;
     // if gid.y != 0 { return; }
     if ix >= arrayLength(&arr) {
