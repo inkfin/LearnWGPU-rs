@@ -13,7 +13,7 @@ struct SphParticle {
 }
 
 const GRAVITY: vec3f = vec3f(0.0, -9.8, 0.0);
-const time_step: f32 = 1e-5;
+const time_step: f32 = 1e-4;
 
 @group(0) @binding(0)
 var<storage, read_write> particles_in: array<SphParticle>;
@@ -135,26 +135,26 @@ fn solve_boundary_constraints(p_in: SphParticle) -> SphParticle {
 
     if p_in.position.x < bound_x.x {
         p_out.position.x = bound_x.x;
-        vel.x = 0.0;
-        vel.y = -vel.y;
+        vel.y = 0.0;
+        vel.x = (c_f - 1.0) * vel.x;
         p_out.velocity = vel;
     }
     if p_in.position.x > bound_x.y {
         p_out.position.x = bound_x.y;
-        vel.x = 0.0;
-        vel.y = -vel.y;
+        vel.y = 0.0;
+        vel.x = (c_f - 1.0) * vel.x;
         p_out.velocity = vel;
     }
     if p_in.position.y < bound_y.x {
         p_out.position.y = bound_y.x;
-        vel.y = 0.0;
-        vel.x = -vel.x;
+        vel.x = 0.0;
+        vel.y = (c_f - 1.0) * vel.y;
         p_out.velocity = vel;
     }
     if p_in.position.y > bound_y.y {
         p_out.position.y = bound_y.y;
-        vel.y = 0.0;
-        vel.x = -vel.x;
+        vel.x = 0.0;
+        vel.y = (c_f - 1.0) * vel.y;
         p_out.velocity = vel;
     }
 

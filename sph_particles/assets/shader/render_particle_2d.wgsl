@@ -67,7 +67,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // draw a circle
     if length(in.uv) < 0.4 {
         return in.color;
+    } else {
+        discard;
     }
-    discard;
+    // adding this line because weird naga webgpu compile error
+    return vec4f(0.0, 0.0, 0.0, 0.0);
 }
 

@@ -109,8 +109,7 @@ impl State {
                     // NOTE: WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web, we'll have to disable some.
                     required_limits: if cfg!(target_arch = "wasm32") {
-                        // TODO: remove this downlevel later
-                        wgpu::Limits::default()
+                        wgpu::Limits::downlevel_defaults()
                     } else {
                         wgpu::Limits::default()
                     },
@@ -268,8 +267,6 @@ impl State {
                     label: Some("Compute Encoder"),
                 });
 
-        self.compute_state
-            .compute_pass_particle(&mut compute_encoder, &self.particle_state);
         self.compute_state
             .compute_pass_particle(&mut compute_encoder, &self.particle_state);
 

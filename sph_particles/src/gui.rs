@@ -14,7 +14,32 @@ pub struct UILayer {
     pub frame_history: FrameHistory,
 }
 
-const SCALE: f64 = 0.7;
+fn configure_text_styles(ctx: &egui::Context) {
+    use egui::{
+        FontFamily::{Monospace, Proportional},
+        FontId, TextStyle,
+    };
+
+    let mut style = (*ctx.style()).clone();
+    style.text_styles = [
+        (TextStyle::Heading, FontId::new(20.0, Proportional)),
+        (
+            TextStyle::Name("Heading2".into()),
+            FontId::new(19.0, Proportional),
+        ),
+        (
+            TextStyle::Name("Context".into()),
+            FontId::new(18.0, Proportional),
+        ),
+        (TextStyle::Body, FontId::new(17.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(16.0, Monospace)),
+        (TextStyle::Button, FontId::new(16.0, Proportional)),
+        (TextStyle::Small, FontId::new(14.0, Proportional)),
+    ]
+    .into();
+
+    ctx.set_style(style);
+}
 
 impl UILayer {
     pub fn new(
@@ -26,10 +51,12 @@ impl UILayer {
         let egui_platform = Platform::new(PlatformDescriptor {
             physical_width: size.width,
             physical_height: size.height,
-            scale_factor: scale_factor * SCALE,
+            scale_factor,
             font_definitions: egui::FontDefinitions::default(),
             style: Default::default(),
         });
+        let ctx = egui_platform.context();
+        configure_text_styles(&ctx);
         let egui_rpass = egui_wgpu_backend::RenderPass::new(device, *surface_format, 1);
         let demo_app = egui_demo_lib::DemoWindows::default();
 
@@ -89,7 +116,7 @@ impl UILayer {
         self.window_open.entry(title.to_owned()).or_insert(true);
         egui::Window::new(title)
             .open(self.window_open.get_mut(title).unwrap_or(&mut false))
-            .default_size((96.0, 300.0))
+            .default_size((220.0, 500.0))
             .resizable(true)
             .show(&ctx, |ui| {
                 ui.vertical(|ui| {
@@ -133,7 +160,7 @@ impl UILayer {
         let screen_descriptor = ScreenDescriptor {
             physical_width: window.inner_size().width,
             physical_height: window.inner_size().height,
-            scale_factor: window.scale_factor() as f32 * SCALE as f32,
+            scale_factor: window.scale_factor() as f32,
         };
         let tdelta: egui::TexturesDelta = full_output.textures_delta;
 
