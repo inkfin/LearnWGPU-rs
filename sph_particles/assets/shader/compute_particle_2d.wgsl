@@ -1,52 +1,63 @@
-//!include world.h.wgsl math.h.wgsl
+//!include world.h.wgsl math.h.wgsl particle.h.wgsl
 
-// particles.rs Particle
-struct SphParticle {
-    position: vec3<f32>, // only use xy
-    density: f32,
-    velocity: vec3<f32>,
-    support_radius: f32,
-    pressure: vec3<f32>,
-    particle_radius: f32,
-    ptype: u32, // 0 for fluid, 1 for boundary
-    _pad: array<f32, 3>,
-}
+const GRAVITY: vec3<f32> = vec3<f32>(0.0, -9.8, 0.0);
+const time_step: f32 = 0.02;
 
-const GRAVITY: vec3f = vec3f(0.0, -9.8, 0.0);
-const time_step: f32 = 1e-4;
+const COMPUTE_DENSITIES: u32 = 0;
+const COMPUTE_NON_PRESSURE_FORCES: u32 = 1;
+const COMPUTE_PRESSURE_FORCES: u32 = 2;
+const ADVECT: u32 = 3;
+
+struct Uniforms {
+    compute_stage: u32,
+    dt: f32,
+};
 
 @group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@group(1) @binding(0)
 var<storage, read_write> particles_in: array<SphParticle>;
 
-@group(0) @binding(1)
+@group(1) @binding(1)
 var<storage, read_write> particles_out: array<SphParticle>;
 
+const workgroup_size_x: u32 = 256;
+
 @compute
-@workgroup_size(256, 1, 1)
+@workgroup_size(workgroup_size_x, 1, 1)
 fn cs_main(
     @builtin(global_invocation_id) gid: vec3<u32>,
     @builtin(local_invocation_id) lid: vec3<u32>,
-    @builtin(workgroup_id) wid: vec3<u32>
+    @builtin(workgroup_id) wid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     // WORKGROUP_SIZE: (4096, 1024, 1)
-    let id = (gid.x + gid.y * 4096u);
+    let id = (gid.x + gid.y * workgroup_size_x * num_workgroups.x);
     if id >= arrayLength(&particles_in) {
         return;
     }
 
-    let y_lower = world_boundary_y().x;
     let p = particles_in[id];
     var p_next = p;
 
-    if p.ptype == 0 { // fluid
-        // 1. Apply gravity
-        p_next.velocity += GRAVITY;
-        p_next.position += p_next.velocity * time_step;
-        // 2. Solve boundary constraints
+    if uniforms.compute_stage == COMPUTE_DENSITIES {
+        p_next = calc_density(id);
+    } else if uniforms.compute_stage == COMPUTE_NON_PRESSURE_FORCES {
+        p_next = calc_non_pressure_force(id);
+        p_next = update_pressure(p_next);
+    } else if uniforms.compute_stage == COMPUTE_PRESSURE_FORCES {
+        p_next = calc_pressure_force(id);
+    } else if uniforms.compute_stage == ADVECT {
+        p_next.position += p.velocity * time_step;
         p_next = solve_boundary_constraints(p_next);
-
-        // last: update particles
-    } // else don't update
+    }
+    // if p.ptype == 0 {
+    //     p_next.velocity = vec3<f32>(0.0);
+    //     p_next.velocity += GRAVITY * time_step;
+    //     p_next.position += p_next.velocity * time_step;
+    //     p_next = solve_boundary_constraints(p_next);
+    // }
 
     particles_out[id] = p_next;
 }
@@ -55,69 +66,117 @@ fn cs_main(
 // =========================================================
 //  WCSPH implementation
 
+const dim = 2.0; // dimension
 const dx = 0.1;
-const h_fac = 3.0;
-const dh: f32 = dx * h_fac; // kernel radius
-const alpha: f32 = 0.5;
+const rho_0 = 1000.0; // reference density
+const diameter = 2.0 * dx;
+const m_V = 0.8 * diameter * diameter; // particle volume 2D
+const dh: f32 = dx * 4.0; // kernel radius
+const viscosity: f32 = 0.05;
 const c_s: f32 = 100.0;
+const gamma: f32 = 7.0;
+const stiffness: f32 = 50.0;//rho_0 * c_s * c_s / gamma; // pressure constant
 
-fn get_mass(p: SphParticle) -> f32 {
-    var density_sum = 0.0;
-
-    return p.density / density_sum;
-
-    // let density = p.density;
-    // let r = p.particle_radius;
-    // let volume = 4.0 * M_PI * r * r * r / 3.0;
-    // return density * volume;
+fn density_kernel(r: vec3<f32>, h: f32) -> f32 {
+    return cubicKernel2D(r, h);
 }
 
-fn rho_sum(p: SphParticle, x_ab: vec2f) -> f32 {
-    let m = get_mass(p);
-    return m * cubicKernel(x_ab, dh);
+fn density_grad(r: vec3<f32>, h: f32) -> vec3<f32> {
+    return cubicGrad2D(r, h);
 }
 
-fn rho_dt(p: SphParticle, v_ab: vec2f, x_ab: vec2f) -> f32 {
-    let m = get_mass(p);
-    return dot(v_ab, cubicGrad(x_ab, dh));
+
+fn calc_density(pi: u32) -> SphParticle {
+    let p_in = particles_in[pi];
+    var p_out = p_in;
+
+    p_out.density = 0.0;
+    for (var pj: u32 = 0; pj < arrayLength(&particles_in); pj += 1u) {
+        if pj == pi { continue; }
+
+        let p_other: SphParticle = particles_in[pj];
+        let x_ij = p_in.position - p_other.position;
+
+        if length(x_ij) < dh {
+            p_out.density += m_V * density_kernel(x_ij, dh);
+        }
+    }
+    // treat as [0, 1]
+    p_out.density *= rho_0;
+    p_out.density = max(p_out.density, rho_0);
+    return p_out;
 }
 
-fn vel_dt_from_pressure(
-    p: SphParticle,
-    Pa: f32,
-    Pb: f32,
-    rho_a: f32,
-    rho_b: f32,
-    x_ab: vec2f
-) -> vec2f {
-    // Compute the pressure force contribution, Symmetric Formula
-    let m = get_mass(p);
-    let res = -m * (Pa / (rho_a * rho_a) + Pb / (rho_b * rho_b) * cubicGrad(x_ab, dh));
-    return res;
-}
+fn calc_viscosity_dv(pi: u32) -> vec3<f32> {
+    let p_in = particles_in[pi];
+    var dv = vec3<f32>(0.0);
 
-fn vel_dt_from_viscosity(
-    p: SphParticle,
-    rho_a: f32,
-    rho_b: f32,
-    v_ab: vec2f,
-    x_ab: vec2f
-) -> vec2f {
-    // Compute the viscosity force contribution, artificial viscosity
-    let m = get_mass(p);
+    for (var pj: u32 = 0; pj < arrayLength(&particles_in); pj += 1u) {
+        if pj == pi { continue; }
 
-    var res = vec2f(0.0);
-    let v_dot_x = dot(v_ab, x_ab);
-    if v_dot_x < 0 {
-        // artificial viscosity
-        let mu = 2.0 * alpha * dh * c_s / (rho_a + rho_b);
-        let x_ab_norm = normalize(x_ab);
-        let x_ab_norm_2 = x_ab_norm * x_ab_norm;
-        let PI_ab = -mu * (v_dot_x / x_ab_norm_2 + 0.01 * dh * dh);
-        res = -m * PI_ab * cubicGrad(x_ab, dh);
+        let p_other = particles_in[pj];
+        let x_ab = p_in.position - p_other.position;
+        let v_ab = p_in.velocity - p_other.velocity;
+        let r_ab = length(x_ab);
+        if r_ab < dh {
+            let v_dot_x = dot(v_ab, x_ab);
+            dv += 2.0 * (dim + 2.0) * viscosity * m_V * v_dot_x / (r_ab * r_ab + 0.01 * dh * dh) * density_grad(x_ab, dh);
+        }
     }
 
-    return res;
+    return dv;
+}
+
+fn calc_non_pressure_force(pi: u32) -> SphParticle {
+    let p_in = particles_in[pi];
+    var p_out = p_in;
+
+    if p_in.ptype == 1 {return p_out;}
+
+    var dv = vec3<f32>(0.0);
+    dv += calc_viscosity_dv(pi);
+    dv += GRAVITY;
+
+    p_out.velocity += time_step * dv;
+    return p_out;
+}
+
+// Calculate pressure, WCSPH equation (7)
+fn update_pressure(p_in: SphParticle) -> SphParticle {
+    var p_out = p_in;
+    let rho = p_in.density;
+    p_out.pressure = stiffness * (pow(rho / rho_0, gamma) - 1.0);
+    return p_out;
+}
+
+fn calc_pressure_force(pi: u32) -> SphParticle {
+    let p_in = particles_in[pi];
+    var p_out = p_in;
+
+    if p_in.ptype == 1 { return p_out; }
+
+    var dv = vec3<f32>(0.0);
+
+    for (var pj: u32 = 0; pj < arrayLength(&particles_in); pj += 1u) {
+        if pj == pi { continue; }
+
+        let p_other = particles_in[pj];
+        let x_ab = p_in.position - p_other.position;
+        let v_ab = p_in.velocity - p_other.velocity;
+        let r_ab = length(x_ab);
+        if r_ab < dh {
+            let Pa = p_in.pressure;
+            let Pb = p_other.pressure;
+            let rho_a = p_in.density;
+            let rho_b = p_other.density;
+
+            dv += - rho_0 * m_V * (Pa / (rho_a * rho_a) + Pb / (rho_b * rho_b)) * density_grad(x_ab, dh);
+        }
+    }
+
+    p_out.velocity += time_step * dv;
+
+    return p_out;
 }
 
 // end WCSPH
@@ -128,32 +187,31 @@ fn solve_boundary_constraints(p_in: SphParticle) -> SphParticle {
     var p_out: SphParticle = p_in;
     var vel = p_in.velocity;
 
-    let bound_x: vec2f = world_boundary_x();
-    let bound_y: vec2f = world_boundary_y();
+    if p_in.ptype == 1 { return p_out; }
+
+
+    let bound_x: vec2<f32> = world_boundary_x();
+    let bound_y: vec2<f32> = world_boundary_y();
 
     let c_f: f32 = 0.3; // collision factor
 
     if p_in.position.x < bound_x.x {
         p_out.position.x = bound_x.x;
-        vel.y = 0.0;
         vel.x = (c_f - 1.0) * vel.x;
         p_out.velocity = vel;
     }
     if p_in.position.x > bound_x.y {
         p_out.position.x = bound_x.y;
-        vel.y = 0.0;
         vel.x = (c_f - 1.0) * vel.x;
         p_out.velocity = vel;
     }
     if p_in.position.y < bound_y.x {
         p_out.position.y = bound_y.x;
-        vel.x = 0.0;
         vel.y = (c_f - 1.0) * vel.y;
         p_out.velocity = vel;
     }
     if p_in.position.y > bound_y.y {
         p_out.position.y = bound_y.y;
-        vel.x = 0.0;
         vel.y = (c_f - 1.0) * vel.y;
         p_out.velocity = vel;
     }

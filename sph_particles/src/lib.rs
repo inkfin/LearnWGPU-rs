@@ -33,7 +33,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use crate::{timer::Timer, uniforms::Instance};
+use crate::timer::Timer;
 
 struct State {
     surface: wgpu::Surface<'static>,
@@ -250,51 +250,31 @@ impl State {
         self.render_state.update_uniforms(&self.camera, &self.queue);
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    fn render(&mut self, dt: f32) -> Result<(), wgpu::SurfaceError> {
+        self.compute_state.compute(
+            &self.device,
+            &self.queue,
+            &self.bind_group_layout_cache,
+            &mut self.particle_state,
+            dt,
+        );
+
         let output = self.surface.get_current_texture()?;
 
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // swap compute buffers before rendering
-        self.particle_state
-            .swap_compute_buffers(&self.device, &self.bind_group_layout_cache);
+        self.render_state.render(
+            &self.device,
+            &self.queue,
+            &mut self.ui_state,
+            &self.window,
+            &view,
+            &self.particle_state,
+        );
 
-        let mut compute_encoder =
-            self.device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Compute Encoder"),
-                });
-
-        self.compute_state
-            .compute_pass_particle(&mut compute_encoder, &self.particle_state);
-
-        let mut render_encoder =
-            self.device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
-        // self.render_state
-        //     .render_pass_model(&mut render_encoder, &view, &self.obj_model);
-
-        self.render_state
-            .render_pass_particle(&mut render_encoder, &view, &self.particle_state);
-
-        // draw GUI
-        let ui_command_buffer =
-            self.ui_state
-                .render(&self.device, &self.queue, &self.window, &view);
-
-        // submit will accept anything that implements IntoIter
-        self.queue.submit(vec![
-            compute_encoder.finish(),
-            render_encoder.finish(),
-            ui_command_buffer,
-        ]);
         output.present();
-
         Ok(())
     }
 }
@@ -396,16 +376,18 @@ pub async fn run() {
 
             // *control_flow = ControlFlow::Poll;
 
+            let dt = timer.now().as_secs_f32() - last_frame_time;
+
             state.ui_state.egui_platform.handle_event(&event);
             // update egui
             state
                 .ui_state
                 .egui_platform
                 .update_time(timer.elapse_timer.elapsed().as_secs_f64());
-            state.ui_state.frame_history.on_new_frame(
-                timer.now().as_secs_f64(),
-                Some(timer.now().as_secs_f32() - last_frame_time),
-            );
+            state
+                .ui_state
+                .frame_history
+                .on_new_frame(timer.now().as_secs_f64(), Some(dt));
             last_frame_time = timer.now().as_secs_f32();
 
             if state.ui_state.egui_platform.captures_event(&event) {
@@ -436,7 +418,7 @@ pub async fn run() {
                                 // Get current time on frame start
                                 timer.render_timer = Instant::now();
 
-                                match state.render() {
+                                match state.render(dt) {
                                     Ok(_) => {}
                                     // Reconfigure the surface if lost
                                     Err(wgpu::SurfaceError::Lost) => {

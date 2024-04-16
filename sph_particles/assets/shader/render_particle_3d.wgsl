@@ -2,13 +2,13 @@
 
 // particles.rs Particle
 struct SphParticle {
-    position: vec3<f32>,
+    position: vec3<f32>, // only use xy
     density: f32,
     velocity: vec3<f32>,
     support_radius: f32,
-    pressure: vec3<f32>,
-    particle_radius: f32,
-    ptype: u32,
+    pressure: f32,
+    ptype: u32, // 0 for fluid, 1 for boundary
+    _pad: array<f32, 2>,
 }
 
 @group(1) @binding(0)

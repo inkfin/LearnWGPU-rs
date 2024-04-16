@@ -5,17 +5,17 @@ use wgpu::util::DeviceExt;
 
 use crate::{render::BindGroupLayoutCache, vertex_data::ShaderVertexData};
 
-const DEFAULT_SUPPORT_RADIUS: f32 = 0.1;
+const DEFAULT_SUPPORT_RADIUS: f32 = 0.5;
 const DEFAULT_PARTICLE_RADIUS: f32 = 0.1;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Particle {
     pub position: Vector3<f32>,
     pub velocity: Vector3<f32>,
-    pub pressure: Vector3<f32>,
+    pub pressure: f32,
     pub density: f32,
+    pub mass: f32,
     pub support_radius: f32,
-    pub particle_radius: f32,
     pub ptype: u32, // 0: fluid, 1: boundary
 }
 
@@ -26,10 +26,10 @@ pub struct ParticleRaw {
     density: f32, // padding for 16 bytes
     velocity: [f32; 3],
     support_radius: f32,
-    pressure: [f32; 3],
-    particle_radius: f32,
+    mass: f32,
+    pressure: f32,
     ptype: u32,
-    _pad: [f32; 3],
+    _pad: [f32; 1],
 }
 
 impl Default for Particle {
@@ -37,10 +37,10 @@ impl Default for Particle {
         Self {
             position: Vector3::new(0.0, 0.0, 0.0),
             velocity: Vector3::new(0.0, 0.0, 0.0),
-            pressure: Vector3::new(0.0, 0.0, 0.0),
+            pressure: 0.0,
             density: 1.0,
-            support_radius: DEFAULT_PARTICLE_RADIUS * 5.0,
-            particle_radius: DEFAULT_PARTICLE_RADIUS,
+            support_radius: DEFAULT_SUPPORT_RADIUS,
+            mass: 0.0,
             ptype: 0,
         }
     }
@@ -52,8 +52,8 @@ pub enum ParticleDataShaderLocation {
     Density = 1,
     Velocity = 2,
     SupportRadius = 3,
-    Pressure = 4,
-    ParticleRadius = 5,
+    Mass = 4,
+    Pressure = 5,
     PType = 6,
 }
 
@@ -63,12 +63,12 @@ impl ShaderVertexData for Particle {
         ParticleRaw {
             position: self.position.into(),
             velocity: self.velocity.into(),
-            pressure: self.pressure.into(),
+            pressure: self.pressure,
             density: self.density,
             support_radius: self.support_radius,
-            particle_radius: self.particle_radius,
+            mass: self.mass,
             ptype: self.ptype,
-            _pad: [0.0, 0.0, 0.0],
+            _pad: [0.0],
         }
     }
 
@@ -99,18 +99,18 @@ impl ShaderVertexData for Particle {
                     shader_location: ParticleDataShaderLocation::SupportRadius as u32,
                 },
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32,
                     offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::Pressure as u32,
+                    shader_location: ParticleDataShaderLocation::Mass as u32,
                 },
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32,
-                    offset: mem::size_of::<[f32; 11]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::ParticleRadius as u32,
+                    offset: mem::size_of::<[f32; 9]>() as wgpu::BufferAddress,
+                    shader_location: ParticleDataShaderLocation::Pressure as u32,
                 },
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Uint32,
-                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 10]>() as wgpu::BufferAddress,
                     shader_location: ParticleDataShaderLocation::PType as u32,
                 },
             ],
@@ -163,43 +163,39 @@ impl ParticleState {
         // fluids
         let mut particle_list = get_particles_2d(
             (1.0, 0.8),
-            (4.0, 6.8),
+            (6.0, 6.8),
             true,
             1000.0,
             None,
             DEFAULT_SUPPORT_RADIUS,
-            DEFAULT_PARTICLE_RADIUS,
         );
 
         // walls
         particle_list.append(&mut get_particles_2d(
             (0.0, 0.0),
-            (10.0, 0.5),
+            (10.0, 0.4),
             false,
             1000.0,
             None,
             DEFAULT_SUPPORT_RADIUS,
-            DEFAULT_PARTICLE_RADIUS,
         ));
 
         particle_list.append(&mut get_particles_2d(
-            (0.0, 0.5),
-            (0.5, 10.0),
+            (0.0, 0.4),
+            (0.4, 10.0),
             false,
             1000.0,
             None,
             DEFAULT_SUPPORT_RADIUS,
-            DEFAULT_PARTICLE_RADIUS,
         ));
 
         particle_list.append(&mut get_particles_2d(
-            (9.5, 0.5),
+            (9.6, 0.4),
             (10.0, 10.0),
             false,
             1000.0,
             None,
             DEFAULT_SUPPORT_RADIUS,
-            DEFAULT_PARTICLE_RADIUS,
         ));
 
         // ---------------------------------------
@@ -289,6 +285,7 @@ pub trait ComputeParticle<'a> {
     fn compute_particle(
         &mut self,
         workgroup_size: (u32, u32, u32),
+        uniforms_bind_group: &'a wgpu::BindGroup,
         particle_bind_group: &'a wgpu::BindGroup,
     );
 }
@@ -300,9 +297,11 @@ where
     fn compute_particle(
         &mut self,
         workgroup_size: (u32, u32, u32),
+        uniforms_bind_group: &'a wgpu::BindGroup,
         particle_bind_group: &'a wgpu::BindGroup,
     ) {
-        self.set_bind_group(0, particle_bind_group, &[]);
+        self.set_bind_group(0, uniforms_bind_group, &[]);
+        self.set_bind_group(1, particle_bind_group, &[]);
         self.insert_debug_marker("compute particle");
         self.dispatch_workgroups(workgroup_size.0, workgroup_size.1, workgroup_size.2);
     }
@@ -341,7 +340,6 @@ fn get_particles_2d(
     density: f32,
     velocity: Option<Vector3<f32>>,
     support_radius: f32,
-    particle_radius: f32,
 ) -> Vec<Particle> {
     let mut particles = Vec::new();
 
@@ -355,15 +353,14 @@ fn get_particles_2d(
                 density,
                 velocity: velocity.unwrap_or(Vector3::new(0.0, 0.0, 0.0)),
                 support_radius,
-                particle_radius,
                 ..Default::default()
             };
 
             particles.push(p);
 
-            y_coord += particle_radius;
+            y_coord += DEFAULT_PARTICLE_RADIUS * 2.0;
         }
-        x_coord += particle_radius;
+        x_coord += DEFAULT_PARTICLE_RADIUS * 2.0;
         y_coord = lower_bound.1;
     }
 

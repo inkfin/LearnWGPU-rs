@@ -1,40 +1,93 @@
+// Reference: https://github.com/InteractiveComputerGraphics/SPlisHSPlasH/blob/master/SPlisHSPlasH/SPHKernels.h
 const M_PI: f32 = 3.1415926535897932384626;
 
-const CUBIC_KERNEL_FACTOR: f32 = 10 / (7 * M_PI);
+//====================================================
+// Cubic Kernel 3D
+//====================================================
 
 // smooth kernel function
-fn cubicKernel(r: vec2f, h: f32) -> f32 {
+fn cubicKernel3D(r: vec3<f32>, h: f32) -> f32 {
     // value of cubic spline smoothing kernel
     let r_len = length(r);
-    let half_h = h / 2.0;
-    let k = CUBIC_KERNEL_FACTOR / (half_h * half_h);
-    let q = max(r_len / half_h, 0.0);
+    let k = 8.0 / (M_PI * h * h * h);
+    let q = max(r_len / h, 0.0);
 
+    // assert q > 0.0
     var res: f32 = 0.0;
     if q <= 1.0 {
-        let q2 = q * q;
-        res = k * (1.0 - 1.5 * q2 + 0.75 * q * q2);
-    } else if q < 2.0 {
-        res = k * 0.25 * pow((2.0 - q), 3.0);
+        if q <= 0.5 {
+            res = k * (6.0 * q * q * q - 6.0 * q * q + 1.0);
+        } else {
+            res = k * 2.0 * pow(1.0 - q, 3.0);
+        }
     }
     return res;
 }
 
-fn cubicGrad(r: vec2f, h: f32) -> vec2f {
+fn cubicGrad3D(r: vec3<f32>, h: f32) -> vec3<f32> {
     // derivative of cubic spline smoothing kernel
     let r_len = length(r);
     let r_dir = normalize(r);
 
-    let half_h = h / 2.0;
-    let k = CUBIC_KERNEL_FACTOR / (half_h * half_h);
-    let q = max(r_len / half_h, 0.0);
+    let l = 48.0 / (M_PI * h * h * h);
+    let q = r_len / h;
+    let gradq = r_dir / h;
 
     // assert q > 0.0
-    var res = vec2f(0.0, 0.0);
-    if q < 1.0 {
-        res = (k / half_h) * (-3.0 * q + 2.25 * q * q) * r_dir;
-    } else if q < 2.0 {
-        res = -0.75 * (k / half_h) * (2.0 - q) * (2.0 - q) * r_dir;
+    var res = vec3<f32>(0.0);
+    if q > 1e-9 && q <= 1.0 {
+        if q <= 0.5 {
+            res = l * q * (3.0 * q - 2.0) * gradq;
+        } else {
+            res = l * (q - 1.0) * (1.0 - q) * gradq;
+        }
     }
     return res;
 }
+
+//====================================================
+// Cubic Kernel 2D
+//====================================================
+
+// smooth kernel function
+fn cubicKernel2D(r: vec3<f32>, h: f32) -> f32 {
+    // value of cubic spline smoothing kernel
+    let r_len = length(r);
+    let k = 40.0 / (7.0 * M_PI * h * h);
+    let q = max(r_len / h, 0.0);
+
+    // assert q > 0.0
+    var res: f32 = 0.0;
+    if q <= 1.0 {
+        if q <= 0.5 {
+            res = k * (6.0 * q * q * q - 6.0 * q * q + 1.0);
+        } else {
+            res = k * 2.0 * pow(1.0 - q, 3.0);
+        }
+    }
+    return res;
+}
+
+fn cubicGrad2D(r: vec3<f32>, h: f32) -> vec3<f32> {
+    // derivative of cubic spline smoothing kernel
+    let r_len = length(r);
+    let r_dir = normalize(r);
+
+    let k = 240.0 / (7.0 * M_PI * h * h);
+    let q = r_len / h;
+    let gradq = r_dir / h;
+
+    // assert q > 0.0
+    var res = vec3<f32>(0.0);
+    if q > 1e-9 && q <= 1.0 {
+        if q <= 0.5 {
+            res = k * q * (3.0 * q - 2.0) * gradq;
+        } else {
+            res = k * (q - 1.0) * (1.0 - q) * gradq;
+        }
+    }
+    return res;
+}
+
+// End Cubic Kernel 2D
+//====================================================
