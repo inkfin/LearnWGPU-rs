@@ -13,49 +13,13 @@ var<uniform> uniforms: Uniforms;
 @group(1) @binding(0)
 var<storage, read_write> particles_in: array<SphParticle>;
 
-@group(1) @binding(1)
+@group(2) @binding(0)
 var<storage, read_write> particles_out: array<SphParticle>;
 
 const workgroup_size_x: u32 = 256;
 
 fn get_particle_id(gid: vec3<u32>, num_workgroups: vec3<u32>) -> u32 {
     return (gid.x + gid.y * workgroup_size_x * num_workgroups.x);
-}
-
-@compute
-@workgroup_size(workgroup_size_x, 1, 1)
-fn cs_main(
-    @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(num_workgroups) num_workgroups: vec3<u32>,
-) {
-    // WORKGROUP_SIZE: (4096, 1024, 1)
-    let id = get_particle_id(gid, num_workgroups);
-    if id >= arrayLength(&particles_in) {
-        return;
-    }
-
-    let p = particles_in[id];
-    var p_next = p;
-
-    // if uniforms.compute_stage == COMPUTE_DENSITIES {
-    //     p_next = calc_density(id);
-    // } else if uniforms.compute_stage == COMPUTE_NON_PRESSURE_FORCES {
-    //     p_next = calc_non_pressure_force(id);
-    //     p_next = update_pressure(p_next);
-    // } else if uniforms.compute_stage == COMPUTE_PRESSURE_FORCES {
-    //     p_next = calc_pressure_force(id);
-    // } else if uniforms.compute_stage == ADVECT {
-    //     p_next.position += p.velocity * time_step;
-    //     p_next = solve_boundary_constraints(p_next);
-    // }
-    // if p.ptype == 0 {
-    //     p_next.velocity = vec3<f32>(0.0);
-    //     p_next.velocity += GRAVITY * time_step;
-    //     p_next.position += p_next.velocity * time_step;
-    //     p_next = solve_boundary_constraints(p_next);
-    // }
-
-    particles_out[id] = p_next;
 }
 
 @compute
@@ -118,9 +82,23 @@ fn advect_main(
         return;
     }
 
+    var p_next = advect(id);
+
+    particles_out[id] = p_next;
+}
+
+@compute
+@workgroup_size(workgroup_size_x, 1, 1)
+fn empty_copy_main(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    let id = get_particle_id(gid, num_workgroups);
+    if id >= arrayLength(&particles_in) {
+        return;
+    }
+
     var p_next = particles_in[id];
-    p_next.position += p_next.velocity * time_step;
-    p_next = solve_boundary_constraints(p_next);
 
     particles_out[id] = p_next;
 }
@@ -239,6 +217,14 @@ fn calc_pressure_force(pi: u32) -> SphParticle {
 
     p_out.velocity += time_step * dv;
 
+    return p_out;
+}
+
+fn advect(pi: u32) -> SphParticle {
+    let p_in = particles_in[pi];
+    var p_out = p_in;
+    p_out.position += p_in.velocity * time_step;
+    p_out = solve_boundary_constraints(p_out);
     return p_out;
 }
 

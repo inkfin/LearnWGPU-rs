@@ -122,9 +122,9 @@ pub struct ParticleState {
     pub particle_list: Vec<Particle>,
 
     // wgpu state
-    pub particle_buffers: Vec<wgpu::Buffer>,
     pub particle_render_bind_group: wgpu::BindGroup,
-    pub particle_compute_bind_group: wgpu::BindGroup,
+    pub particle_compute_bind_group_0: wgpu::BindGroup,
+    pub particle_compute_bind_group_1: wgpu::BindGroup,
 }
 
 impl ParticleState {
@@ -218,19 +218,22 @@ impl ParticleState {
             }),
         ];
 
-        let particle_compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Compute Particle Bind Group"),
+        let particle_compute_bind_group_0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Compute Particle Bind Group 01"),
             layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0, // @binding(0) read
-                    resource: particle_buffers[0].as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1, // @binding(1) write
-                    resource: particle_buffers[1].as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: particle_buffers[0].as_entire_binding(),
+            }],
+        });
+
+        let particle_compute_bind_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Compute Particle Bind Group 10"),
+            layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: particle_buffers[1].as_entire_binding(),
+            }],
         });
 
         let particle_render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -244,41 +247,42 @@ impl ParticleState {
 
         Self {
             particle_list,
-            particle_buffers,
-            particle_compute_bind_group,
+            particle_compute_bind_group_0,
+            particle_compute_bind_group_1,
             particle_render_bind_group,
         }
     }
 
-    pub fn swap_compute_buffers(
-        &mut self,
-        device: &wgpu::Device,
-        bind_group_layout_cache: &BindGroupLayoutCache,
-    ) {
-        self.particle_buffers.swap(0, 1);
-        self.particle_compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Compute Particle Bind Group"),
-            layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0, // @binding(0) read
-                    resource: self.particle_buffers[0].as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1, // @binding(1) write
-                    resource: self.particle_buffers[1].as_entire_binding(),
-                },
-            ],
-        });
-        self.particle_render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Render Particle Bind Group"),
-            layout: &bind_group_layout_cache.particle_render_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: self.particle_buffers[0].as_entire_binding(),
-            }],
-        });
-    }
+    // #[allow(dead_code)]
+    // pub fn swap_compute_buffers(
+    //     &mut self,
+    //     device: &wgpu::Device,
+    //     bind_group_layout_cache: &BindGroupLayoutCache,
+    // ) {
+    //     self.particle_buffers.swap(0, 1);
+    //     self.particle_compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+    //         label: Some("Compute Particle Bind Group"),
+    //         layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
+    //         entries: &[
+    //             wgpu::BindGroupEntry {
+    //                 binding: 0, // @binding(0) read
+    //                 resource: self.particle_buffers[0].as_entire_binding(),
+    //             },
+    //             wgpu::BindGroupEntry {
+    //                 binding: 1, // @binding(1) write
+    //                 resource: self.particle_buffers[1].as_entire_binding(),
+    //             },
+    //         ],
+    //     });
+    //     self.particle_render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+    //         label: Some("Render Particle Bind Group"),
+    //         layout: &bind_group_layout_cache.particle_render_bind_group_layout,
+    //         entries: &[wgpu::BindGroupEntry {
+    //             binding: 0,
+    //             resource: self.particle_buffers[0].as_entire_binding(),
+    //         }],
+    //     });
+    // }
 }
 
 pub trait ComputeParticle<'a> {
@@ -286,7 +290,8 @@ pub trait ComputeParticle<'a> {
         &mut self,
         workgroup_size: (u32, u32, u32),
         uniforms_bind_group: &'a wgpu::BindGroup,
-        particle_bind_group: &'a wgpu::BindGroup,
+        particle_bind_group_0: &'a wgpu::BindGroup,
+        particle_bind_group_1: &'a wgpu::BindGroup,
     );
 }
 
@@ -298,10 +303,12 @@ where
         &mut self,
         workgroup_size: (u32, u32, u32),
         uniforms_bind_group: &'a wgpu::BindGroup,
-        particle_bind_group: &'a wgpu::BindGroup,
+        particle_bind_group_0: &'a wgpu::BindGroup,
+        particle_bind_group_1: &'a wgpu::BindGroup,
     ) {
         self.set_bind_group(0, uniforms_bind_group, &[]);
-        self.set_bind_group(1, particle_bind_group, &[]);
+        self.set_bind_group(1, particle_bind_group_0, &[]);
+        self.set_bind_group(2, particle_bind_group_1, &[]);
         self.insert_debug_marker("compute particle");
         self.dispatch_workgroups(workgroup_size.0, workgroup_size.1, workgroup_size.2);
     }

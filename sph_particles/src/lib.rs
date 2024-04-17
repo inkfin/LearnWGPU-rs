@@ -251,13 +251,8 @@ impl State {
     }
 
     fn render(&mut self, dt: f32) -> Result<(), wgpu::SurfaceError> {
-        self.compute_state.compute(
-            &self.device,
-            &self.queue,
-            &self.bind_group_layout_cache,
-            &mut self.particle_state,
-            dt,
-        );
+        self.compute_state
+            .compute(&self.device, &self.queue, &mut self.particle_state, dt);
 
         let output = self.surface.get_current_texture()?;
 

@@ -2,15 +2,6 @@ use cgmath::prelude::*;
 
 use crate::camera::Camera;
 
-#[repr(u32)]
-#[derive(Clone, Copy)]
-pub enum ComputeStage {
-    ComputeDensities = 0,
-    ComputeNonPressureForces = 1,
-    ComputePressureForces = 2,
-    Advect = 3,
-}
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
