@@ -8,6 +8,7 @@ members = [
     # "compute_example",
     "sph_particles",
     "bitonic_sort",
+    "test_pass_performance",
 ]
 resolver = "2"
 
