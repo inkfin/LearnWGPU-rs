@@ -3,13 +3,7 @@
 const GRAVITY: vec3<f32> = vec3<f32>(0.0, -9.8, 0.0);
 const time_step: f32 = 0.02;
 
-const COMPUTE_DENSITIES: u32 = 0;
-const COMPUTE_NON_PRESSURE_FORCES: u32 = 1;
-const COMPUTE_PRESSURE_FORCES: u32 = 2;
-const ADVECT: u32 = 3;
-
 struct Uniforms {
-    compute_stage: u32,
     dt: f32,
 };
 
@@ -24,16 +18,18 @@ var<storage, read_write> particles_out: array<SphParticle>;
 
 const workgroup_size_x: u32 = 256;
 
+fn get_particle_id(gid: vec3<u32>, num_workgroups: vec3<u32>) -> u32 {
+    return (gid.x + gid.y * workgroup_size_x * num_workgroups.x);
+}
+
 @compute
 @workgroup_size(workgroup_size_x, 1, 1)
 fn cs_main(
     @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(local_invocation_id) lid: vec3<u32>,
-    @builtin(workgroup_id) wid: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     // WORKGROUP_SIZE: (4096, 1024, 1)
-    let id = (gid.x + gid.y * workgroup_size_x * num_workgroups.x);
+    let id = get_particle_id(gid, num_workgroups);
     if id >= arrayLength(&particles_in) {
         return;
     }
@@ -41,23 +37,90 @@ fn cs_main(
     let p = particles_in[id];
     var p_next = p;
 
-    if uniforms.compute_stage == COMPUTE_DENSITIES {
-        p_next = calc_density(id);
-    } else if uniforms.compute_stage == COMPUTE_NON_PRESSURE_FORCES {
-        p_next = calc_non_pressure_force(id);
-        p_next = update_pressure(p_next);
-    } else if uniforms.compute_stage == COMPUTE_PRESSURE_FORCES {
-        p_next = calc_pressure_force(id);
-    } else if uniforms.compute_stage == ADVECT {
-        p_next.position += p.velocity * time_step;
-        p_next = solve_boundary_constraints(p_next);
-    }
+    // if uniforms.compute_stage == COMPUTE_DENSITIES {
+    //     p_next = calc_density(id);
+    // } else if uniforms.compute_stage == COMPUTE_NON_PRESSURE_FORCES {
+    //     p_next = calc_non_pressure_force(id);
+    //     p_next = update_pressure(p_next);
+    // } else if uniforms.compute_stage == COMPUTE_PRESSURE_FORCES {
+    //     p_next = calc_pressure_force(id);
+    // } else if uniforms.compute_stage == ADVECT {
+    //     p_next.position += p.velocity * time_step;
+    //     p_next = solve_boundary_constraints(p_next);
+    // }
     // if p.ptype == 0 {
     //     p_next.velocity = vec3<f32>(0.0);
     //     p_next.velocity += GRAVITY * time_step;
     //     p_next.position += p_next.velocity * time_step;
     //     p_next = solve_boundary_constraints(p_next);
     // }
+
+    particles_out[id] = p_next;
+}
+
+@compute
+@workgroup_size(workgroup_size_x, 1, 1)
+fn compute_density_main(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    let id = get_particle_id(gid, num_workgroups);
+    if id >= arrayLength(&particles_in) {
+        return;
+    }
+
+    let p_next = calc_density(id);
+
+    particles_out[id] = p_next;
+}
+
+@compute
+@workgroup_size(workgroup_size_x, 1, 1)
+fn compute_non_pressure_main(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    let id = get_particle_id(gid, num_workgroups);
+    if id >= arrayLength(&particles_in) {
+        return;
+    }
+
+    var p_next = calc_non_pressure_force(id);
+    p_next = update_pressure(p_next);
+
+    particles_out[id] = p_next;
+}
+
+@compute
+@workgroup_size(workgroup_size_x, 1, 1)
+fn compute_pressure_main(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    let id = get_particle_id(gid, num_workgroups);
+    if id >= arrayLength(&particles_in) {
+        return;
+    }
+
+    var p_next = calc_pressure_force(id);
+
+    particles_out[id] = p_next;
+}
+
+@compute
+@workgroup_size(workgroup_size_x, 1, 1)
+fn advect_main(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    let id = get_particle_id(gid, num_workgroups);
+    if id >= arrayLength(&particles_in) {
+        return;
+    }
+
+    var p_next = particles_in[id];
+    p_next.position += p_next.velocity * time_step;
+    p_next = solve_boundary_constraints(p_next);
 
     particles_out[id] = p_next;
 }

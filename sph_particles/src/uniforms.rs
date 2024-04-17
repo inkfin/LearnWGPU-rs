@@ -14,16 +14,12 @@ pub enum ComputeStage {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
-    pub compute_stage: u32,
     pub dt: f32,
 }
 
 impl Uniforms {
     pub fn new() -> Self {
-        Self {
-            compute_stage: 0,
-            dt: 0.0,
-        }
+        Self { dt: 0.0 }
     }
 }
 

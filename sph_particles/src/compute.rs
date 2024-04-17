@@ -15,7 +15,10 @@ pub struct ComputeState {
 
     #[allow(dead_code)]
     pub pipeline_layout: wgpu::PipelineLayout,
-    pub pipeline: wgpu::ComputePipeline,
+    pub compute_density_pipeline: wgpu::ComputePipeline,
+    pub compute_non_pressure_pipeline: wgpu::ComputePipeline,
+    pub compute_pressure_pipeline: wgpu::ComputePipeline,
+    pub advect_pipeline: wgpu::ComputePipeline,
 
     pub uniforms_data: Uniforms,
     pub uniforms_buffer: wgpu::Buffer,
@@ -56,17 +59,45 @@ impl ComputeState {
             push_constant_ranges: &[],
         });
 
-        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        // shader entries:
+        let compute_density_pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("Compute Pipeline"),
+                layout: Some(&pipeline_layout),
+                module: &shader,
+                entry_point: "compute_density_main",
+            });
+
+        let compute_non_pressure_pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("Compute Pipeline"),
+                layout: Some(&pipeline_layout),
+                module: &shader,
+                entry_point: "compute_non_pressure_main",
+            });
+
+        let compute_pressure_pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("Compute Pipeline"),
+                layout: Some(&pipeline_layout),
+                module: &shader,
+                entry_point: "compute_pressure_main",
+            });
+
+        let advect_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Compute Pipeline"),
             layout: Some(&pipeline_layout),
             module: &shader,
-            entry_point: "cs_main",
+            entry_point: "advect_main",
         });
 
         Self {
             shader,
             pipeline_layout,
-            pipeline,
+            compute_density_pipeline,
+            compute_non_pressure_pipeline,
+            compute_pressure_pipeline,
+            advect_pipeline,
             uniforms_data,
             uniforms_buffer,
             uniforms_bind_group,
@@ -81,54 +112,63 @@ impl ComputeState {
         particle_state: &mut ParticleState,
         dt: f32,
     ) {
-        let mut current_stage = ComputeStage::ComputeDensities;
+        // update uniform buffer before dispatching compute
+        self.uniforms_data.dt = dt;
+        queue.write_buffer(
+            &self.uniforms_buffer,
+            0,
+            bytemuck::cast_slice(&[self.uniforms_data]),
+        );
 
-        loop {
-            self.uniforms_data.compute_stage = current_stage as u32;
-            self.uniforms_data.dt = dt;
-            queue.write_buffer(
-                &self.uniforms_buffer,
-                0,
-                bytemuck::cast_slice(&[self.uniforms_data]),
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Compute Encoder"),
+        });
+
+        {
+            let mut compute_pass =
+                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            use super::particles::ComputeParticle;
+
+            // 1. compute density
+            compute_pass.set_pipeline(&self.compute_density_pipeline);
+
+            compute_pass.compute_particle(
+                WORKGROUP_SIZE,
+                &self.uniforms_bind_group,
+                &particle_state.particle_compute_bind_group,
             );
 
-            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Compute Encoder"),
-            });
-            {
-                let mut compute_pass =
-                    encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+            // 1. compute non pressure
+            compute_pass.set_pipeline(&self.compute_non_pressure_pipeline);
 
-                compute_pass.set_pipeline(&self.pipeline);
+            compute_pass.compute_particle(
+                WORKGROUP_SIZE,
+                &self.uniforms_bind_group,
+                &particle_state.particle_compute_bind_group,
+            );
 
-                use super::particles::ComputeParticle;
-                compute_pass.compute_particle(
-                    WORKGROUP_SIZE,
-                    &self.uniforms_bind_group,
-                    &particle_state.particle_compute_bind_group,
-                );
-            }
+            // 1. compute pressure
+            compute_pass.set_pipeline(&self.compute_pressure_pipeline);
 
-            queue.submit(Some(encoder.finish()));
+            compute_pass.compute_particle(
+                WORKGROUP_SIZE,
+                &self.uniforms_bind_group,
+                &particle_state.particle_compute_bind_group,
+            );
 
-            // swap compute buffers after rendering
-            particle_state.swap_compute_buffers(device, bind_group_layout_cache);
+            // 4. advect
+            compute_pass.set_pipeline(&self.advect_pipeline);
 
-            // change state
-            match current_stage {
-                ComputeStage::ComputeDensities => {
-                    current_stage = ComputeStage::ComputeNonPressureForces;
-                }
-                ComputeStage::ComputeNonPressureForces => {
-                    current_stage = ComputeStage::ComputePressureForces;
-                }
-                ComputeStage::ComputePressureForces => {
-                    current_stage = ComputeStage::Advect;
-                }
-                ComputeStage::Advect => {
-                    break;
-                }
-            }
+            compute_pass.compute_particle(
+                WORKGROUP_SIZE,
+                &self.uniforms_bind_group,
+                &particle_state.particle_compute_bind_group,
+            );
         }
+
+        queue.submit(Some(encoder.finish()));
+
+        // swap compute buffers after compute
+        particle_state.swap_compute_buffers(device, bind_group_layout_cache);
     }
 }
