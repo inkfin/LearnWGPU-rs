@@ -22,6 +22,7 @@ pub struct ComputeState {
     #[allow(dead_code)]
     pub empty_copy_pipeline: wgpu::ComputePipeline,
 
+    // uniforms data and buffer
     pub uniforms_data: Uniforms,
     pub uniforms_buffer: wgpu::Buffer,
     pub uniforms_bind_group: wgpu::BindGroup,
@@ -118,6 +119,25 @@ impl ComputeState {
             uniforms_buffer,
             uniforms_bind_group,
         }
+    }
+
+    pub async fn sort_particle_data(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        particle_state: &mut ParticleState,
+    ) {
+        particle_state
+            .dump_particle_data_from_gpu(0, device, queue)
+            .await;
+        // sort particle data
+        particle_state.particle_data.sort_by(|a, b| {
+            let a = a.cell_id;
+            let b = b.cell_id;
+            a.cmp(&b)
+        });
+
+        particle_state.upload_particle_data_to_gpu(queue);
     }
 
     pub fn compute(

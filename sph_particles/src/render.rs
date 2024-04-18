@@ -307,8 +307,7 @@ impl RenderState {
             render_pass.draw_particle_instanced(
                 0..1,
                 &self.camera_bind_group,
-                // particle_state.particle_list.len() as u32,
-                particle_state.particle_list.len() as u32,
+                particle_state.particle_data.len() as u32,
                 &particle_state.particle_render_bind_group,
             );
         }

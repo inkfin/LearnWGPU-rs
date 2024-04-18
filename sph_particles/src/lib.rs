@@ -251,6 +251,11 @@ impl State {
     }
 
     fn render(&mut self, dt: f32) -> Result<(), wgpu::SurfaceError> {
+        futures::executor::block_on(self.compute_state.sort_particle_data(
+            &self.device,
+            &self.queue,
+            &mut self.particle_state,
+        ));
         self.compute_state
             .compute(&self.device, &self.queue, &mut self.particle_state, dt);
 

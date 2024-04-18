@@ -5,6 +5,7 @@ struct SphParticle {
     velocity: vec3<f32>,
     pressure: f32,
     ptype: u32, // 0 for fluid, 1 for boundary
-    _pad: array<f32, 3>,
+    cell_id: u32,
+    _pad: array<f32, 2>,
 }
 
