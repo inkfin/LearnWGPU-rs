@@ -1,12 +1,10 @@
 use std::ops::Range;
 
 use cgmath::Vector3;
+use log::info;
 use wgpu::util::DeviceExt;
 
-use crate::{render::BindGroupLayoutCache, vertex_data::ShaderVertexData};
-
-const DEFAULT_SUPPORT_RADIUS: f32 = 0.5;
-const DEFAULT_PARTICLE_RADIUS: f32 = 0.1;
+use crate::{grid_2d::Grid2D, render::BindGroupLayoutCache};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Particle {
@@ -14,8 +12,6 @@ pub struct Particle {
     pub velocity: Vector3<f32>,
     pub pressure: f32,
     pub density: f32,
-    pub mass: f32,
-    pub support_radius: f32,
     pub ptype: u32, // 0: fluid, 1: boundary
 }
 
@@ -25,11 +21,9 @@ pub struct ParticleRaw {
     position: [f32; 3],
     density: f32, // padding for 16 bytes
     velocity: [f32; 3],
-    support_radius: f32,
-    mass: f32,
     pressure: f32,
     ptype: u32,
-    _pad: [f32; 1],
+    _pad: [f32; 3],
 }
 
 impl Default for Particle {
@@ -38,165 +32,137 @@ impl Default for Particle {
             position: Vector3::new(0.0, 0.0, 0.0),
             velocity: Vector3::new(0.0, 0.0, 0.0),
             pressure: 0.0,
-            density: 1.0,
-            support_radius: DEFAULT_SUPPORT_RADIUS,
-            mass: 0.0,
+            density: 1000.0,
             ptype: 0,
         }
     }
 }
 
-/// Defines the particle structure @location() in particle storage buffer
-pub enum ParticleDataShaderLocation {
-    Position = 0,
-    Density = 1,
-    Velocity = 2,
-    SupportRadius = 3,
-    Mass = 4,
-    Pressure = 5,
-    PType = 6,
-}
-
-impl ShaderVertexData for Particle {
-    type RawType = ParticleRaw;
+impl Particle {
     fn to_raw(&self) -> ParticleRaw {
         ParticleRaw {
             position: self.position.into(),
             velocity: self.velocity.into(),
             pressure: self.pressure,
             density: self.density,
-            support_radius: self.support_radius,
-            mass: self.mass,
             ptype: self.ptype,
-            _pad: [0.0],
-        }
-    }
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<ParticleRaw>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
-                    offset: 0,
-                    shader_location: ParticleDataShaderLocation::Position as u32,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32,
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::Density as u32,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::Velocity as u32,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32,
-                    offset: mem::size_of::<[f32; 7]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::SupportRadius as u32,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32,
-                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::Mass as u32,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32,
-                    offset: mem::size_of::<[f32; 9]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::Pressure as u32,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Uint32,
-                    offset: mem::size_of::<[f32; 10]>() as wgpu::BufferAddress,
-                    shader_location: ParticleDataShaderLocation::PType as u32,
-                },
-            ],
+            _pad: [0.0, 0.0, 0.0],
         }
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct WorldData {
+    pub boundary_upper: [f32; 3],
+    pub particle_radius: f32,
+    pub boundary_lower: [f32; 3],
+    pub support_radius: f32,
+}
+
 pub struct ParticleState {
+    pub particle_radius: f32,
+    pub support_radius: f32,
+    pub grid_2d: Grid2D,
+
+    // particle data shared with shaders
+    pub cell_extens: Vec<Vector3<u32>>,
+    pub cell_id_offsets: Vec<u32>,
+
     pub particle_list: Vec<Particle>,
 
     // wgpu state
     pub particle_render_bind_group: wgpu::BindGroup,
     pub particle_compute_bind_group_0: wgpu::BindGroup,
     pub particle_compute_bind_group_1: wgpu::BindGroup,
+
+    // world data buffers
+    pub world_buffer: wgpu::Buffer,
+    pub world_bind_group: wgpu::BindGroup,
 }
 
 impl ParticleState {
     pub fn new(device: &wgpu::Device, bind_group_layout_cache: &BindGroupLayoutCache) -> Self {
+        let particle_radius = 0.1;
+        let support_radius = 0.4;
+
+        let grid_2d = Grid2D::new(
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(25, 25, 0),
+            Vector3::new(support_radius, support_radius, 0.0),
+        );
+
+        let cell_extens = vec![];
+        let cell_id_offsets = vec![];
+
         // --------------------------------------
         // Init particles
 
-        tracing::info!(
-            "ParticleRaw Size: {}",
-            std::mem::size_of::<ParticleRaw>() as wgpu::BufferAddress
-        );
-        // let particle_list = vec![
-        //     Particle {
-        //         position: Vector3::new(4.0, 5.0, 0.0),
-        //         particle_radius: 0.3,
-        //         ptype: 1,
-        //         ..Default::default()
-        //     },
-        //     Particle {
-        //         position: Vector3::new(5.0, 5.0, 0.0),
-        //         ptype: 1,
-        //         ..Default::default()
-        //     },
-        //     Particle {
-        //         position: Vector3::new(6.0, 5.0, 0.0),
-        //         ptype: 1,
-        //         ..Default::default()
-        //     },
-        //     Particle {
-        //         position: Vector3::new(5.0, 6.0, 0.0),
-        //         ptype: 1,
-        //         ..Default::default()
-        //     },
-        // ];
-
         // fluids
-        let mut particle_list = get_particles_2d(
-            (1.0, 0.8),
-            (6.0, 6.8),
+        let mut particle_list = vec![];
+
+        particle_list.append(&mut get_particles_2d(
+            (1.0, 2.0),
+            (8.0, 5.0),
             true,
             1000.0,
-            None,
-            DEFAULT_SUPPORT_RADIUS,
-        );
-
-        // walls
-        particle_list.append(&mut get_particles_2d(
-            (0.0, 0.0),
-            (10.0, 0.4),
-            false,
-            1000.0,
-            None,
-            DEFAULT_SUPPORT_RADIUS,
+            Some(Vector3::new(2.0, -2.0, 0.0)),
+            particle_radius * 2.0,
         ));
 
         particle_list.append(&mut get_particles_2d(
-            (0.0, 0.4),
-            (0.4, 10.0),
-            false,
+            (4.0, 4.0),
+            (9.0, 9.0),
+            true,
             1000.0,
-            None,
-            DEFAULT_SUPPORT_RADIUS,
+            Some(Vector3::new(-4.0, -2.0, 0.0)),
+            particle_radius * 2.0,
         ));
 
+        // generate walls
+        let particle_diameter = particle_radius * 2.0;
+        let padding = (support_radius / particle_diameter).ceil() * particle_diameter * 5.0;
+        // bottom wall
         particle_list.append(&mut get_particles_2d(
-            (9.6, 0.4),
-            (10.0, 10.0),
+            (
+                grid_2d.boundary_lower.x - padding,
+                grid_2d.boundary_lower.y - padding,
+            ),
+            (
+                grid_2d.boundary_upper.x + padding + particle_diameter,
+                grid_2d.boundary_lower.y,
+            ),
             false,
             1000.0,
             None,
-            DEFAULT_SUPPORT_RADIUS,
+            particle_diameter,
         ));
+        // left wall
+        particle_list.append(&mut get_particles_2d(
+            (grid_2d.boundary_lower.x - padding, grid_2d.boundary_lower.y),
+            (grid_2d.boundary_lower.x, grid_2d.boundary_upper.y),
+            false,
+            1000.0,
+            None,
+            particle_diameter,
+        ));
+        // right wall
+        particle_list.append(&mut get_particles_2d(
+            (
+                grid_2d.boundary_upper.x + particle_diameter,
+                grid_2d.boundary_lower.y,
+            ),
+            (
+                grid_2d.boundary_upper.x + padding + particle_diameter,
+                grid_2d.boundary_upper.y,
+            ),
+            false,
+            1000.0,
+            None,
+            particle_diameter,
+        ));
+
+        info!("particle list len: {}", particle_list.len());
 
         // ---------------------------------------
 
@@ -219,7 +185,7 @@ impl ParticleState {
         ];
 
         let particle_compute_bind_group_0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Compute Particle Bind Group 01"),
+            label: Some("Compute Particle Bind Group 0"),
             layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -228,7 +194,7 @@ impl ParticleState {
         });
 
         let particle_compute_bind_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Compute Particle Bind Group 10"),
+            label: Some("Compute Particle Bind Group 1"),
             layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -245,53 +211,52 @@ impl ParticleState {
             }],
         });
 
+        let world_data = WorldData {
+            boundary_upper: grid_2d.boundary_upper.into(),
+            boundary_lower: grid_2d.boundary_lower.into(),
+            particle_radius,
+            support_radius,
+        };
+
+        let world_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("World Buffer"),
+            contents: bytemuck::cast_slice(&[world_data]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let world_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("World Bind Group"),
+            layout: &bind_group_layout_cache.world_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: world_buffer.as_entire_binding(),
+            }],
+        });
+
         Self {
             particle_list,
             particle_compute_bind_group_0,
             particle_compute_bind_group_1,
             particle_render_bind_group,
+            particle_radius,
+            support_radius,
+            grid_2d,
+            cell_extens,
+            cell_id_offsets,
+            world_buffer,
+            world_bind_group,
         }
     }
-
-    // #[allow(dead_code)]
-    // pub fn swap_compute_buffers(
-    //     &mut self,
-    //     device: &wgpu::Device,
-    //     bind_group_layout_cache: &BindGroupLayoutCache,
-    // ) {
-    //     self.particle_buffers.swap(0, 1);
-    //     self.particle_compute_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-    //         label: Some("Compute Particle Bind Group"),
-    //         layout: &bind_group_layout_cache.particle_compute_bind_group_layout,
-    //         entries: &[
-    //             wgpu::BindGroupEntry {
-    //                 binding: 0, // @binding(0) read
-    //                 resource: self.particle_buffers[0].as_entire_binding(),
-    //             },
-    //             wgpu::BindGroupEntry {
-    //                 binding: 1, // @binding(1) write
-    //                 resource: self.particle_buffers[1].as_entire_binding(),
-    //             },
-    //         ],
-    //     });
-    //     self.particle_render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-    //         label: Some("Render Particle Bind Group"),
-    //         layout: &bind_group_layout_cache.particle_render_bind_group_layout,
-    //         entries: &[wgpu::BindGroupEntry {
-    //             binding: 0,
-    //             resource: self.particle_buffers[0].as_entire_binding(),
-    //         }],
-    //     });
-    // }
 }
 
 pub trait ComputeParticle<'a> {
     fn compute_particle(
         &mut self,
         workgroup_size: (u32, u32, u32),
-        uniforms_bind_group: &'a wgpu::BindGroup,
         particle_bind_group_0: &'a wgpu::BindGroup,
         particle_bind_group_1: &'a wgpu::BindGroup,
+        uniforms_bind_group: &'a wgpu::BindGroup,
+        world_bind_group: &'a wgpu::BindGroup,
     );
 }
 
@@ -302,13 +267,15 @@ where
     fn compute_particle(
         &mut self,
         workgroup_size: (u32, u32, u32),
-        uniforms_bind_group: &'a wgpu::BindGroup,
         particle_bind_group_0: &'a wgpu::BindGroup,
         particle_bind_group_1: &'a wgpu::BindGroup,
+        uniforms_bind_group: &'a wgpu::BindGroup,
+        world_bind_group: &'a wgpu::BindGroup,
     ) {
-        self.set_bind_group(0, uniforms_bind_group, &[]);
-        self.set_bind_group(1, particle_bind_group_0, &[]);
-        self.set_bind_group(2, particle_bind_group_1, &[]);
+        self.set_bind_group(0, particle_bind_group_0, &[]);
+        self.set_bind_group(1, particle_bind_group_1, &[]);
+        self.set_bind_group(2, uniforms_bind_group, &[]);
+        self.set_bind_group(3, world_bind_group, &[]);
         self.insert_debug_marker("compute particle");
         self.dispatch_workgroups(workgroup_size.0, workgroup_size.1, workgroup_size.2);
     }
@@ -341,34 +308,31 @@ impl<'a> DrawParticle<'a> for wgpu::RenderPass<'a> {
 
 /// fill in particles in the given range
 fn get_particles_2d(
-    lower_bound: (f32, f32),
-    upper_bound: (f32, f32),
+    bottom_left: (f32, f32),
+    top_right: (f32, f32),
     is_fluid: bool,
     density: f32,
     velocity: Option<Vector3<f32>>,
-    support_radius: f32,
+    diameter: f32,
 ) -> Vec<Particle> {
     let mut particles = Vec::new();
 
-    let mut x_coord = lower_bound.0;
-    let mut y_coord = lower_bound.1;
-    while x_coord <= upper_bound.0 {
-        while y_coord <= upper_bound.1 {
+    let num_x = ((top_right.0 - bottom_left.0) / diameter).ceil() as u32;
+    let num_y = ((top_right.1 - bottom_left.1) / diameter).ceil() as u32;
+    for i in 0..num_x {
+        for j in 0..num_y {
+            let x_coord = bottom_left.0 + i as f32 * diameter;
+            let y_coord = bottom_left.1 + j as f32 * diameter;
             let p = Particle {
                 position: Vector3::new(x_coord, y_coord, 0.0),
                 ptype: if is_fluid { 0 } else { 1 },
                 density,
                 velocity: velocity.unwrap_or(Vector3::new(0.0, 0.0, 0.0)),
-                support_radius,
                 ..Default::default()
             };
 
             particles.push(p);
-
-            y_coord += DEFAULT_PARTICLE_RADIUS * 2.0;
         }
-        x_coord += DEFAULT_PARTICLE_RADIUS * 2.0;
-        y_coord = lower_bound.1;
     }
 
     particles

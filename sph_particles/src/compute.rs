@@ -1,6 +1,9 @@
 use wgpu::util::DeviceExt;
 
-use crate::{particles::ParticleState, uniforms::Uniforms};
+use crate::{
+    particles::{ParticleState, WorldData},
+    uniforms::Uniforms,
+};
 
 use super::resources::load_shader;
 
@@ -55,9 +58,10 @@ impl ComputeState {
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Compute Pipeline Layout"),
             bind_group_layouts: &[
+                &bind_group_layout_cache.particle_compute_bind_group_layout,
+                &bind_group_layout_cache.particle_compute_bind_group_layout,
                 &bind_group_layout_cache.uniforms_bind_group_layout,
-                &bind_group_layout_cache.particle_compute_bind_group_layout,
-                &bind_group_layout_cache.particle_compute_bind_group_layout,
+                &bind_group_layout_cache.world_bind_group_layout,
             ],
             push_constant_ranges: &[],
         });
@@ -131,67 +135,42 @@ impl ComputeState {
             bytemuck::cast_slice(&[self.uniforms_data]),
         );
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Compute Encoder"),
-        });
-
         let (mut src_bind_group, mut dst_bind_group) = (
             &particle_state.particle_compute_bind_group_0,
             &particle_state.particle_compute_bind_group_1,
         );
 
-        {
-            let mut compute_pass =
-                encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
-            use super::particles::ComputeParticle;
+        // add empty copy pipeline if total size is odd
+        let pipeline_list = [
+            &self.compute_density_pipeline,
+            &self.compute_non_pressure_pipeline,
+            &self.compute_pressure_pipeline,
+            &self.advect_pipeline,
+        ];
 
-            // 1. compute density
-            compute_pass.set_pipeline(&self.compute_density_pipeline);
+        for &pipeline in pipeline_list.iter() {
+            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Compute Encoder"),
+            });
 
-            compute_pass.compute_particle(
-                WORKGROUP_SIZE,
-                &self.uniforms_bind_group,
-                src_bind_group,
-                dst_bind_group,
-            );
-            // swap
+            {
+                let mut compute_pass =
+                    encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
+                compute_pass.set_pipeline(pipeline);
+
+                use super::particles::ComputeParticle;
+                compute_pass.compute_particle(
+                    WORKGROUP_SIZE,
+                    src_bind_group,
+                    dst_bind_group,
+                    &self.uniforms_bind_group,
+                    &particle_state.world_bind_group,
+                );
+            }
+            queue.submit(Some(encoder.finish()));
+
+            // swap buffers
             (src_bind_group, dst_bind_group) = (dst_bind_group, src_bind_group);
-
-            // 2. compute non pressure
-            compute_pass.set_pipeline(&self.compute_non_pressure_pipeline);
-
-            compute_pass.compute_particle(
-                WORKGROUP_SIZE,
-                &self.uniforms_bind_group,
-                src_bind_group,
-                dst_bind_group,
-            );
-            // swap
-            (src_bind_group, dst_bind_group) = (dst_bind_group, src_bind_group);
-
-            // 3. compute pressure
-            compute_pass.set_pipeline(&self.compute_pressure_pipeline);
-
-            compute_pass.compute_particle(
-                WORKGROUP_SIZE,
-                &self.uniforms_bind_group,
-                src_bind_group,
-                dst_bind_group,
-            );
-            // swap
-            (src_bind_group, dst_bind_group) = (dst_bind_group, src_bind_group);
-
-            // 4. advect
-            compute_pass.set_pipeline(&self.advect_pipeline);
-
-            compute_pass.compute_particle(
-                WORKGROUP_SIZE,
-                &self.uniforms_bind_group,
-                src_bind_group,
-                dst_bind_group,
-            );
         }
-
-        queue.submit(Some(encoder.finish()));
     }
 }

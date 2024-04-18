@@ -3,6 +3,7 @@ use cgmath::Vector3;
 use crate::vertex_data::ShaderVertexData;
 
 pub struct Grid3D {
+    pub cell_nums: Vector3<u32>,
     pub cell_size: Vector3<f32>,
     pub boundary_upper: Vector3<f32>,
     pub boundary_lower: Vector3<f32>,

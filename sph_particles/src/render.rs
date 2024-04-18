@@ -12,6 +12,7 @@ pub struct BindGroupLayoutCache {
     pub texture_bind_group_layout: wgpu::BindGroupLayout,
     pub camera_bind_group_layout: wgpu::BindGroupLayout,
     pub uniforms_bind_group_layout: wgpu::BindGroupLayout,
+    pub world_bind_group_layout: wgpu::BindGroupLayout,
     pub particle_render_bind_group_layout: wgpu::BindGroupLayout,
     pub particle_compute_bind_group_layout: wgpu::BindGroupLayout,
 }
@@ -73,6 +74,21 @@ impl BindGroupLayoutCache {
                 label: Some("uniforms_bind_group_layout"),
             });
 
+        let world_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("world_bind_group_layout"),
+            });
+
         let particle_render_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Particle Bind Group Layout for Render"),
@@ -107,6 +123,7 @@ impl BindGroupLayoutCache {
             texture_bind_group_layout,
             camera_bind_group_layout,
             uniforms_bind_group_layout,
+            world_bind_group_layout,
             particle_render_bind_group_layout,
             particle_compute_bind_group_layout,
         }
