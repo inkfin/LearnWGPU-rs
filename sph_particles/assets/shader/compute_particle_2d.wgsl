@@ -19,7 +19,7 @@ var<storage, read_write> particles_out: array<SphParticle>;
 const workgroup_size_x: u32 = 256;
 
 fn get_particle_id(gid: vec3<u32>, num_workgroups: vec3<u32>) -> u32 {
-    return (gid.x + gid.y * workgroup_size_x * num_workgroups.x);
+    return gid.x + gid.y * workgroup_size_x * num_workgroups.x;
 }
 
 @compute
@@ -50,6 +50,7 @@ fn compute_non_pressure_main(
     }
 
     var p_next = calc_non_pressure_force(id);
+    // update pressure, get prepared for pressure force
     p_next = update_pressure(p_next);
 
     particles_out[id] = p_next;
@@ -144,13 +145,17 @@ fn calc_density(pi: u32) -> SphParticle {
     }
     // treat as [0, 1]
     p_out.density *= rho_0;
-    p_out.density = max(p_out.density, rho_0);
     return p_out;
 }
 
-fn calc_viscosity_dv(pi: u32) -> vec3<f32> {
+fn calc_non_pressure_force(pi: u32) -> SphParticle {
     let p_in = particles_in[pi];
+    var p_out = p_in;
+
+    if p_in.ptype != 0 {return p_out;}
+
     var dv = vec3<f32>(0.0);
+    dv += GRAVITY;
 
     for (var pj: u32 = 0; pj < arrayLength(&particles_in); pj += 1u) {
         if pj == pi { continue; }
@@ -160,23 +165,10 @@ fn calc_viscosity_dv(pi: u32) -> vec3<f32> {
         let v_ab = p_in.velocity - p_other.velocity;
         let r_ab = length(x_ab);
         if r_ab < dh {
-            let v_dot_x = dot(v_ab, x_ab);
-            dv += 2.0 * (dim + 2.0) * viscosity * m_V * v_dot_x / (r_ab * r_ab + 0.01 * dh * dh) * density_grad(x_ab, dh);
+            let v_dot_x: f32 = dot(v_ab, x_ab);
+            dv += 2.0 * (dim + 2.0) * viscosity * ((m_V * rho_0) / p_in.density) * v_dot_x / (r_ab * r_ab + 0.01 * dh * dh) * density_grad(x_ab, dh);
         }
     }
-
-    return dv;
-}
-
-fn calc_non_pressure_force(pi: u32) -> SphParticle {
-    let p_in = particles_in[pi];
-    var p_out = p_in;
-
-    if p_in.ptype == 1 {return p_out;}
-
-    var dv = vec3<f32>(0.0);
-    dv += calc_viscosity_dv(pi);
-    dv += GRAVITY;
 
     p_out.velocity += time_step * dv;
     return p_out;
@@ -185,8 +177,9 @@ fn calc_non_pressure_force(pi: u32) -> SphParticle {
 // Calculate pressure, WCSPH equation (7)
 fn update_pressure(p_in: SphParticle) -> SphParticle {
     var p_out = p_in;
-    let rho = p_in.density;
-    p_out.pressure = stiffness * (pow(rho / rho_0, gamma) - 1.0);
+    // hard coded free surface solution
+    p_out.density = max(p_in.density, rho_0);
+    p_out.pressure = stiffness * (pow(p_out.density / rho_0, gamma) - 1.0);
     return p_out;
 }
 
@@ -194,7 +187,7 @@ fn calc_pressure_force(pi: u32) -> SphParticle {
     let p_in = particles_in[pi];
     var p_out = p_in;
 
-    if p_in.ptype == 1 { return p_out; }
+    if p_in.ptype != 0 { return p_out; }
 
     var dv = vec3<f32>(0.0);
 
@@ -223,6 +216,9 @@ fn calc_pressure_force(pi: u32) -> SphParticle {
 fn advect(pi: u32) -> SphParticle {
     let p_in = particles_in[pi];
     var p_out = p_in;
+
+    if p_in.ptype != 0 { return p_out; }
+
     p_out.position += p_in.velocity * time_step;
     p_out = solve_boundary_constraints(p_out);
     return p_out;
