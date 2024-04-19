@@ -29,9 +29,9 @@ impl Camera {
         Self {
             // position the camera 1 unit up and 2 units back
             // +z is out of the screen
-            eye: (5.0, 5.0, 20.0).into(),
+            eye: (15.0, 10.0, 20.0).into(),
             // have it look at the origin
-            target: (5.0, 5.0, 0.0).into(),
+            target: (5.0, 5.0, 5.0).into(),
             // which way is "up"
             up: cgmath::Vector3::unit_y(),
             aspect,

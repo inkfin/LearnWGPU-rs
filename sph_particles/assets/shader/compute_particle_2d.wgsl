@@ -1,7 +1,7 @@
 //!include world.h.wgsl math.h.wgsl particle.h.wgsl
 
 const GRAVITY: vec3<f32> = vec3<f32>(0.0, -9.8, 0.0);
-const time_step: f32 = 0.01;
+const time_step: f32 = 0.05;
 
 struct Uniforms {
     dt: f32,

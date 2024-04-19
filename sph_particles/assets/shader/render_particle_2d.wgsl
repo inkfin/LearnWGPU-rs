@@ -26,12 +26,12 @@ fn vs_main(
     @builtin(vertex_index) in_vertex_index: u32,
 ) -> VertexOutput {
     var positions_offset: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-        vec2<f32>(-1.0, 1.0),  // 左上
-        vec2<f32>(-1.0, -1.0), // 左下
-        vec2<f32>(1.0, -1.0),  // 右下
-        vec2<f32>(1.0, 1.0),   // 右上
-        vec2<f32>(-1.0, 1.0),  // 左上
-        vec2<f32>(1.0, -1.0)   // 右下
+        vec2<f32>(-1.0, 1.0),  // top-left
+        vec2<f32>(-1.0, -1.0), // bottom-left
+        vec2<f32>(1.0, -1.0),  // bottom-right
+        vec2<f32>(1.0, 1.0),   // top-right
+        vec2<f32>(-1.0, 1.0),  // top-left
+        vec2<f32>(1.0, -1.0)   // bottom-right
     );
 
     var out: VertexOutput;

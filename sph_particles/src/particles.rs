@@ -108,18 +108,18 @@ impl ParticleState {
         // fluids
         let mut particle_list = vec![];
 
-        particle_list.append(&mut get_particles_2d(
-            (1.0, 2.0),
-            (8.0, 5.0),
+        particle_list.append(&mut get_particles_3d(
+            (1.0, 2.0, 1.0),
+            (8.0, 5.0, 4.0),
             true,
             1000.0,
             Some(Vector3::new(2.0, -2.0, 0.0)),
             particle_radius * 2.0,
         ));
 
-        particle_list.append(&mut get_particles_2d(
-            (4.0, 4.0),
-            (9.0, 9.0),
+        particle_list.append(&mut get_particles_3d(
+            (4.0, 4.0, 4.0),
+            (9.0, 9.0, 9.0),
             true,
             1000.0,
             Some(Vector3::new(-4.0, -2.0, 0.0)),

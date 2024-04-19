@@ -173,7 +173,8 @@ impl RenderState {
             device.create_shader_module(load_shader("render_mesh.wgsl").await.unwrap());
 
         let particle_shader =
-            device.create_shader_module(load_shader("render_particle_2d.wgsl").await.unwrap());
+            // device.create_shader_module(load_shader("render_particle_2d.wgsl").await.unwrap());
+            device.create_shader_module(load_shader("render_particle_3d.wgsl").await.unwrap());
 
         // let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         //     label: Some("Particle Shader"),

@@ -47,7 +47,8 @@ impl ComputeState {
         bind_group_layout_cache: &super::render::BindGroupLayoutCache,
     ) -> Self {
         let shader =
-            device.create_shader_module(load_shader("compute_particle_2d.wgsl").await.unwrap());
+            // device.create_shader_module(load_shader("compute_particle_2d.wgsl").await.unwrap());
+            device.create_shader_module(load_shader("compute_particle_3d.wgsl").await.unwrap());
 
         let uniforms_data = ComputeUniforms::new();
 
