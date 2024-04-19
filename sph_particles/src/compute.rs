@@ -2,12 +2,24 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     particles::{ParticleState, WorldData},
-    uniforms::Uniforms,
 };
 
 use super::resources::load_shader;
 
 const WORKGROUP_SIZE: (u32, u32, u32) = (512, 256, 1); // total 4194304
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ComputeUniforms {
+    pub dt: f32,
+}
+
+impl ComputeUniforms {
+    pub fn new() -> Self {
+        Self { dt: 0.0 }
+    }
+}
+
 
 pub struct ComputeState {
     #[allow(dead_code)]
@@ -23,8 +35,9 @@ pub struct ComputeState {
     pub empty_copy_pipeline: wgpu::ComputePipeline,
 
     // uniforms data and buffer
-    pub uniforms_data: Uniforms,
+    pub uniforms_data: ComputeUniforms,
     pub uniforms_buffer: wgpu::Buffer,
+    pub uniforms_staging_belt: wgpu::util::StagingBelt,
     pub uniforms_bind_group: wgpu::BindGroup,
 }
 
@@ -36,13 +49,15 @@ impl ComputeState {
         let shader =
             device.create_shader_module(load_shader("compute_particle_2d.wgsl").await.unwrap());
 
-        let uniforms_data = Uniforms::new();
+        let uniforms_data = ComputeUniforms::new();
 
         let uniforms_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniforms Buffer"),
             contents: bytemuck::cast_slice(&[uniforms_data]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+
+        let uniforms_staging_belt = wgpu::util::StagingBelt::new(0x1000);
 
         let uniforms_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Uniforms Bind Group"),
@@ -117,6 +132,7 @@ impl ComputeState {
             empty_copy_pipeline,
             uniforms_data,
             uniforms_buffer,
+            uniforms_staging_belt,
             uniforms_bind_group,
         }
     }
@@ -147,14 +163,6 @@ impl ComputeState {
         particle_state: &mut ParticleState,
         dt: f32,
     ) {
-        // update uniform buffer before dispatching compute
-        self.uniforms_data.dt = dt;
-        queue.write_buffer(
-            &self.uniforms_buffer,
-            0,
-            bytemuck::cast_slice(&[self.uniforms_data]),
-        );
-
         let (mut src_bind_group, mut dst_bind_group) = (
             &particle_state.particle_compute_bind_group_0,
             &particle_state.particle_compute_bind_group_1,
@@ -173,6 +181,20 @@ impl ComputeState {
                 label: Some("Compute Encoder"),
             });
 
+            // update uniform buffer before dispatching compute
+            self.uniforms_data.dt = dt;
+            self.uniforms_staging_belt
+                .write_buffer(
+                    &mut encoder,
+                    &self.uniforms_buffer,
+                    0,
+                    wgpu::BufferSize::new(std::mem::size_of::<ComputeUniforms>() as wgpu::BufferAddress)
+                        .unwrap(),
+                    device,
+                )
+                .copy_from_slice(bytemuck::cast_slice(&[self.uniforms_data]));
+            self.uniforms_staging_belt.finish();
+
             {
                 let mut compute_pass =
                     encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
@@ -188,6 +210,8 @@ impl ComputeState {
                 );
             }
             queue.submit(Some(encoder.finish()));
+
+            self.uniforms_staging_belt.recall();
 
             // swap buffers
             (src_bind_group, dst_bind_group) = (dst_bind_group, src_bind_group);

@@ -4,7 +4,7 @@ use cgmath::Vector3;
 const MAX_NUM_PARTICLES_PER_CELL: u32 = 500;
 const MAX_NUM_NEIGHBORS: u32 = 500;
 
-pub struct Grid2D {
+pub struct Grid {
     pub cell_nums: Vector3<u32>,
     /// single cell size
     pub cell_size: Vector3<f32>,
@@ -15,12 +15,12 @@ pub struct Grid2D {
     pub boundary_lower: Vector3<f32>,
 }
 
-impl Grid2D {
+impl Grid {
     pub fn new(corner: Vector3<f32>, cell_nums: Vector3<u32>, cell_size: Vector3<f32>) -> Self {
         let cell_total_size = Vector3::new(
             cell_size.x * cell_nums.x as f32,
             cell_size.y * cell_nums.y as f32,
-            0.0,
+            cell_size.z * cell_nums.z as f32,
         );
         let center = corner + cell_total_size / 2.0;
 

@@ -1,15 +1,15 @@
 mod camera;
 mod compute;
-mod grid_2d;
-mod grid_3d;
+// mod compute_depth_filter;
+mod grid;
 mod gui;
+// mod materials;
 mod model;
 mod particles;
 mod render;
 mod resources;
 mod texture;
 mod timer;
-mod uniforms;
 mod vertex_data;
 
 use std::sync::Arc;

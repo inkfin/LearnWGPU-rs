@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use wgpu::{util::DeviceExt, SurfaceConfiguration};
 
-use crate::{camera::Camera, texture, uniforms::CameraUniform};
+use crate::{camera::{Camera, CameraUniform}, texture};
 
 use super::resources::load_shader;
 

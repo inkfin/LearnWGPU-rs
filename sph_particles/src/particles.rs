@@ -4,7 +4,7 @@ use cgmath::Vector3;
 use log::info;
 use wgpu::util::DeviceExt;
 
-use crate::{grid_2d::Grid2D, render::BindGroupLayoutCache};
+use crate::{grid::Grid, render::BindGroupLayoutCache};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Particle {
@@ -67,7 +67,7 @@ pub struct WorldData {
 pub struct ParticleState {
     pub particle_radius: f32,
     pub support_radius: f32,
-    pub grid_2d: Grid2D,
+    pub grid_2d: Grid,
 
     // particle data shared with shaders
     pub cell_extens: Vec<Vector3<u32>>,
@@ -93,10 +93,10 @@ impl ParticleState {
         let particle_radius = 0.1;
         let support_radius = 0.4;
 
-        let grid_2d = Grid2D::new(
+        let grid = Grid::new(
             Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(25, 25, 0),
-            Vector3::new(support_radius, support_radius, 0.0),
+            Vector3::new(25, 25, 25),
+            Vector3::new(support_radius, support_radius, support_radius),
         );
 
         let cell_extens = vec![];
@@ -127,47 +127,47 @@ impl ParticleState {
         ));
 
         // generate walls
-        let particle_diameter = particle_radius * 2.0;
-        let padding = (support_radius / particle_diameter).ceil() * particle_diameter * 5.0;
-        // bottom wall
-        particle_list.append(&mut get_particles_2d(
-            (
-                grid_2d.boundary_lower.x - padding,
-                grid_2d.boundary_lower.y - padding,
-            ),
-            (
-                grid_2d.boundary_upper.x + padding + particle_diameter,
-                grid_2d.boundary_lower.y,
-            ),
-            false,
-            1000.0,
-            None,
-            particle_diameter,
-        ));
-        // left wall
-        particle_list.append(&mut get_particles_2d(
-            (grid_2d.boundary_lower.x - padding, grid_2d.boundary_lower.y),
-            (grid_2d.boundary_lower.x, grid_2d.boundary_upper.y),
-            false,
-            1000.0,
-            None,
-            particle_diameter,
-        ));
-        // right wall
-        particle_list.append(&mut get_particles_2d(
-            (
-                grid_2d.boundary_upper.x + particle_diameter,
-                grid_2d.boundary_lower.y,
-            ),
-            (
-                grid_2d.boundary_upper.x + padding + particle_diameter,
-                grid_2d.boundary_upper.y,
-            ),
-            false,
-            1000.0,
-            None,
-            particle_diameter,
-        ));
+        // let particle_diameter = particle_radius * 2.0;
+        // let padding = (support_radius / particle_diameter).ceil() * particle_diameter * 5.0;
+        // // bottom wall
+        // particle_list.append(&mut get_particles_2d(
+        //     (
+        //         grid_2d.boundary_lower.x - padding,
+        //         grid_2d.boundary_lower.y - padding,
+        //     ),
+        //     (
+        //         grid_2d.boundary_upper.x + padding + particle_diameter,
+        //         grid_2d.boundary_lower.y,
+        //     ),
+        //     false,
+        //     1000.0,
+        //     None,
+        //     particle_diameter,
+        // ));
+        // // left wall
+        // particle_list.append(&mut get_particles_2d(
+        //     (grid_2d.boundary_lower.x - padding, grid_2d.boundary_lower.y),
+        //     (grid_2d.boundary_lower.x, grid_2d.boundary_upper.y),
+        //     false,
+        //     1000.0,
+        //     None,
+        //     particle_diameter,
+        // ));
+        // // right wall
+        // particle_list.append(&mut get_particles_2d(
+        //     (
+        //         grid_2d.boundary_upper.x + particle_diameter,
+        //         grid_2d.boundary_lower.y,
+        //     ),
+        //     (
+        //         grid_2d.boundary_upper.x + padding + particle_diameter,
+        //         grid_2d.boundary_upper.y,
+        //     ),
+        //     false,
+        //     1000.0,
+        //     None,
+        //     particle_diameter,
+        // ));
 
         info!("particle list len: {}", particle_list.len());
 
@@ -230,8 +230,8 @@ impl ParticleState {
         });
 
         let world_data = WorldData {
-            boundary_upper: grid_2d.boundary_upper.into(),
-            boundary_lower: grid_2d.boundary_lower.into(),
+            boundary_upper: grid.boundary_upper.into(),
+            boundary_lower: grid.boundary_lower.into(),
             particle_radius,
             support_radius,
         };
@@ -260,7 +260,7 @@ impl ParticleState {
             particle_render_bind_group,
             particle_radius,
             support_radius,
-            grid_2d,
+            grid_2d: grid,
             cell_extens,
             cell_id_offsets,
             world_buffer,
@@ -388,6 +388,41 @@ fn get_particles_2d(
             };
 
             particles.push(p);
+        }
+    }
+
+    particles
+}
+
+fn get_particles_3d(
+    bottom_left: (f32, f32, f32),
+    top_right: (f32, f32, f32),
+    is_fluid: bool,
+    density: f32,
+    velocity: Option<Vector3<f32>>,
+    diameter: f32,
+) -> Vec<Particle> {
+    let mut particles = Vec::new();
+
+    let num_x = ((top_right.0 - bottom_left.0) / diameter).ceil() as u32;
+    let num_y = ((top_right.1 - bottom_left.1) / diameter).ceil() as u32;
+    let num_z = ((top_right.2 - bottom_left.2) / diameter).ceil() as u32;
+    for i in 0..num_x {
+        for j in 0..num_y {
+            for k in 0..num_z {
+                let x_coord = bottom_left.0 + i as f32 * diameter;
+                let y_coord = bottom_left.1 + j as f32 * diameter;
+                let z_coord = bottom_left.2 + k as f32 * diameter;
+                let p = Particle {
+                    position: Vector3::new(x_coord, y_coord, z_coord),
+                    ptype: if is_fluid { 0 } else { 1 },
+                    density,
+                    velocity: velocity.unwrap_or(Vector3::new(0.0, 0.0, 0.0)),
+                    ..Default::default()
+                };
+
+                particles.push(p);
+            }
         }
     }
 
