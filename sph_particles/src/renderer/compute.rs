@@ -1,10 +1,8 @@
 use wgpu::util::DeviceExt;
 
-use crate::{
-    particles::{ParticleState, WorldData},
-};
+use crate::particle_system::ParticleState;
 
-use super::resources::load_shader;
+use crate::resources::load_shader;
 
 const WORKGROUP_SIZE: (u32, u32, u32) = (512, 256, 1); // total 4194304
 
@@ -19,7 +17,6 @@ impl ComputeUniforms {
         Self { dt: 0.0 }
     }
 }
-
 
 pub struct ComputeState {
     #[allow(dead_code)]
@@ -44,7 +41,7 @@ pub struct ComputeState {
 impl ComputeState {
     pub async fn new(
         device: &wgpu::Device,
-        bind_group_layout_cache: &super::render::BindGroupLayoutCache,
+        bind_group_layout_cache: &super::gpu_cache::BindGroupLayoutCache,
     ) -> Self {
         let shader =
             // device.create_shader_module(load_shader("compute_particle_2d.wgsl").await.unwrap());
@@ -189,8 +186,10 @@ impl ComputeState {
                     &mut encoder,
                     &self.uniforms_buffer,
                     0,
-                    wgpu::BufferSize::new(std::mem::size_of::<ComputeUniforms>() as wgpu::BufferAddress)
-                        .unwrap(),
+                    wgpu::BufferSize::new(
+                        std::mem::size_of::<ComputeUniforms>() as wgpu::BufferAddress
+                    )
+                    .unwrap(),
                     device,
                 )
                 .copy_from_slice(bytemuck::cast_slice(&[self.uniforms_data]));
@@ -201,7 +200,7 @@ impl ComputeState {
                     encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
                 compute_pass.set_pipeline(pipeline);
 
-                use super::particles::ComputeParticle;
+                use crate::particle_system::ComputeParticle;
                 compute_pass.compute_particle(
                     WORKGROUP_SIZE,
                     src_bind_group,

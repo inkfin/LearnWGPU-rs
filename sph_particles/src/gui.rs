@@ -133,7 +133,7 @@ impl UILayer {
         queue: &wgpu::Queue,
         window: &winit::window::Window,
         view: &wgpu::TextureView,
-    ) -> wgpu::CommandBuffer {
+    ) -> wgpu::SubmissionIndex {
         // use different encoder
         let mut egui_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder (UI)"),
@@ -189,7 +189,7 @@ impl UILayer {
             .remove_textures(tdelta)
             .expect("Can't remove egui texture");
 
-        egui_encoder.finish()
+        queue.submit(Some(egui_encoder.finish()))
     }
 }
 

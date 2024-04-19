@@ -1,16 +1,13 @@
 mod camera;
-mod compute;
+mod renderer;
 // mod compute_depth_filter;
-mod grid;
 mod gui;
 // mod materials;
 mod model;
-mod particles;
-mod render;
+mod particle_system;
 mod resources;
 mod texture;
 mod timer;
-mod vertex_data;
 
 use std::sync::Arc;
 
@@ -19,7 +16,7 @@ use gui::UILayer;
 use instant::Instant;
 use model::Model;
 
-use render::BindGroupLayoutCache;
+use renderer::BindGroupLayoutCache;
 use tracing::{error, info, warn};
 
 #[cfg(target_arch = "wasm32")]
@@ -33,7 +30,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use crate::timer::Timer;
+use crate::{particle_system::ParticleState, timer::Timer};
 
 struct State {
     surface: wgpu::Surface<'static>,
@@ -49,11 +46,11 @@ struct State {
     camera: Camera,
     camera_controller: CameraController,
 
-    particle_state: particles::ParticleState,
+    particle_state: ParticleState,
 
     bind_group_layout_cache: BindGroupLayoutCache,
-    compute_state: compute::ComputeState,
-    render_state: render::RenderState,
+    compute_state: renderer::ComputeState,
+    render_state: renderer::RenderState,
     ui_state: UILayer,
 
     fish_model: Model,
@@ -161,10 +158,10 @@ impl State {
 
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
-        let particle_state = particles::ParticleState::new(&device, &bind_group_layout_cache);
-        let compute_state = compute::ComputeState::new(&device, &bind_group_layout_cache).await;
+        let particle_state = ParticleState::new(&device, &bind_group_layout_cache);
+        let compute_state = renderer::ComputeState::new(&device, &bind_group_layout_cache).await;
         let render_state =
-            render::RenderState::new(&device, &config, &bind_group_layout_cache).await;
+            renderer::RenderState::new(&device, &config, &bind_group_layout_cache).await;
 
         let ui_state = UILayer::new(&device, &surface_format, size, scale_factor);
 
@@ -268,10 +265,17 @@ impl State {
         self.render_state.render(
             &self.device,
             &self.queue,
-            &mut self.ui_state,
             &self.window,
             &view,
             &self.particle_state,
+        );
+
+        // draw gui at last
+        self.ui_state.render(
+            &self.device,
+            &self.queue,
+            &self.window,
+            &view,
         );
 
         output.present();
