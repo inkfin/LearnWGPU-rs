@@ -16,7 +16,7 @@ use gui::UILayer;
 use instant::Instant;
 use model::Model;
 
-use renderer::BindGroupLayoutCache;
+use renderer::{BindGroupLayoutCache, Renderer};
 use tracing::{error, info, warn};
 
 #[cfg(target_arch = "wasm32")]
@@ -49,8 +49,7 @@ struct State {
     particle_state: ParticleState,
 
     bind_group_layout_cache: BindGroupLayoutCache,
-    compute_state: renderer::ComputeState,
-    render_state: renderer::RenderState,
+    renderer: Renderer,
     ui_state: UILayer,
 
     fish_model: Model,
@@ -158,10 +157,9 @@ impl State {
 
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
+        let renderer = Renderer::new(&device, &config, &bind_group_layout_cache).await;
+
         let particle_state = ParticleState::new(&device, &bind_group_layout_cache);
-        let compute_state = renderer::ComputeState::new(&device, &bind_group_layout_cache).await;
-        let render_state =
-            renderer::RenderState::new(&device, &config, &bind_group_layout_cache).await;
 
         let ui_state = UILayer::new(&device, &surface_format, size, scale_factor);
 
@@ -192,8 +190,7 @@ impl State {
             scale_factor,
             camera,
             camera_controller,
-            compute_state,
-            render_state,
+            renderer,
             fish_model: obj_model,
             ui_state,
             particle_state,
@@ -230,7 +227,7 @@ impl State {
         self.camera.aspect = self.screen_size.width as f32 / self.screen_size.height as f32;
         self.surface.configure(&self.device, &self.surface_config);
 
-        self.render_state.depth_texture = texture::Texture::create_depth_texture(
+        self.renderer.render_state.depth_texture = texture::Texture::create_depth_texture(
             &self.device,
             &self.surface_config,
             "depth_texture",
@@ -244,39 +241,29 @@ impl State {
     fn update(&mut self, delta_time: f32) {
         self.camera_controller
             .update_camera_state(&mut self.camera, delta_time);
-        self.render_state.update_uniforms(&self.camera, &self.queue);
+        self.renderer
+            .render_state
+            .update_uniforms(&self.camera, &self.queue);
     }
 
     fn render(&mut self, dt: f32) -> Result<(), wgpu::SurfaceError> {
-        futures::executor::block_on(self.compute_state.sort_particle_data(
-            &self.device,
-            &self.queue,
-            &mut self.particle_state,
-        ));
-        self.compute_state
-            .compute(&self.device, &self.queue, &mut self.particle_state, dt);
-
         let output = self.surface.get_current_texture()?;
 
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.render_state.render(
+        self.renderer.render(
+            dt,
+            &mut self.particle_state,
             &self.device,
             &self.queue,
-            &self.window,
             &view,
-            &self.particle_state,
         );
 
         // draw gui at last
-        self.ui_state.render(
-            &self.device,
-            &self.queue,
-            &self.window,
-            &view,
-        );
+        self.ui_state
+            .render(&self.device, &self.queue, &self.window, &view);
 
         output.present();
         Ok(())

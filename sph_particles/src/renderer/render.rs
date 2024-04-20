@@ -17,6 +17,7 @@ pub struct RenderState {
     pub _particle_shader: wgpu::ShaderModule,
 
     /// The render pipeline defines the layout of data that the GPU will receive
+    // pub particle_depth_render_pipeline: wgpu::RenderPipeline,
     pub particle_render_pipeline: wgpu::RenderPipeline,
 
     pub depth_texture: texture::Texture,
@@ -151,7 +152,6 @@ impl RenderState {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        window: &Arc<winit::window::Window>,
         out_tex_view: &wgpu::TextureView,
         particle_state: &ParticleState,
     ) {
