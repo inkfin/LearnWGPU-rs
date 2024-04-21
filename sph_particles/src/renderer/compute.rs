@@ -59,7 +59,7 @@ impl ComputeState {
 
         let uniforms_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Uniforms Bind Group"),
-            layout: &bind_group_layout_cache.uniforms_bind_group_layout,
+            layout: &bind_group_layout_cache.compute_uniforms_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: uniforms_buffer.as_entire_binding(),
@@ -74,7 +74,7 @@ impl ComputeState {
             bind_group_layouts: &[
                 &bind_group_layout_cache.particle_compute_bind_group_layout,
                 &bind_group_layout_cache.particle_compute_bind_group_layout,
-                &bind_group_layout_cache.uniforms_bind_group_layout,
+                &bind_group_layout_cache.compute_uniforms_bind_group_layout,
                 &bind_group_layout_cache.world_bind_group_layout,
             ],
             push_constant_ranges: &[],
@@ -154,7 +154,7 @@ impl ComputeState {
         particle_state.upload_particle_data_to_gpu(queue);
     }
 
-    pub fn compute(
+    pub fn compute_sph(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,

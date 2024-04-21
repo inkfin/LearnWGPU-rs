@@ -143,7 +143,7 @@ impl State {
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
+        let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: size.width,
@@ -153,11 +153,20 @@ impl State {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-        surface.configure(&device, &config);
+        surface.configure(&device, &surface_config);
+
+        let aspect = surface_config.width as f32 / surface_config.height as f32;
+        let camera = Camera::new(aspect);
+
+        let camera_controller = CameraController::new(2.0);
+
+        let modes = &surface_caps.present_modes;
+
+        dbg!(modes);
 
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
-        let renderer = Renderer::new(&device, &config, &bind_group_layout_cache).await;
+        let renderer = Renderer::new(&device, &camera, &surface_config, &bind_group_layout_cache).await;
 
         let particle_state = ParticleState::new(&device, &bind_group_layout_cache);
 
@@ -172,20 +181,13 @@ impl State {
         .await
         .unwrap();
 
-        let aspect = config.width as f32 / config.height as f32;
-        let camera = Camera::new(aspect);
 
-        let camera_controller = CameraController::new(2.0);
-
-        let modes = &surface_caps.present_modes;
-
-        dbg!(modes);
         Self {
             window: window.clone(),
             surface,
             device,
             queue,
-            surface_config: config,
+            surface_config,
             screen_size: size,
             scale_factor,
             camera,
@@ -227,11 +229,7 @@ impl State {
         self.camera.aspect = self.screen_size.width as f32 / self.screen_size.height as f32;
         self.surface.configure(&self.device, &self.surface_config);
 
-        self.renderer.render_state.depth_texture = texture::Texture::create_depth_texture(
-            &self.device,
-            &self.surface_config,
-            "depth_texture",
-        );
+        self.renderer.resize(&self.device, &self.surface_config, &self.bind_group_layout_cache);
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -241,9 +239,7 @@ impl State {
     fn update(&mut self, delta_time: f32) {
         self.camera_controller
             .update_camera_state(&mut self.camera, delta_time);
-        self.renderer
-            .render_state
-            .update_uniforms(&self.camera, &self.queue);
+        self.renderer.update(&self.camera, &self.surface_config, &self.queue);
     }
 
     fn render(&mut self, dt: f32) -> Result<(), wgpu::SurfaceError> {

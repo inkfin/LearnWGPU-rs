@@ -1,4 +1,4 @@
-use cgmath::SquareMatrix;
+use cgmath::{SquareMatrix, Transform};
 use winit::{
     event::{ElementState, KeyEvent, WindowEvent},
     keyboard::{KeyCode, PhysicalKey},
@@ -37,36 +37,68 @@ impl Camera {
             aspect,
             fovy: 45.0,
             znear: 0.1,
-            zfar: 100.0,
+            zfar: 50.0,
         }
     }
 
-    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+    pub fn build_view_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        view
+    }
 
-        OPENGL_TO_WGPU_MATRIX * proj * view
+    pub fn build_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        OPENGL_TO_WGPU_MATRIX * proj
+    }
+
+    pub fn get_camera_intrinsic(&self, w: u32, h: u32) -> cgmath::Vector4<f32> {
+        let proj = self.build_projection_matrix();
+        let tan_half_fovx = 1.0 / proj[0][0];
+        let tan_half_fovy = 1.0 / proj[1][1];
+
+        cgmath::Vector4::new(
+            2.0 * tan_half_fovx / w as f32, // fxInv
+            2.0 * tan_half_fovy / h as f32, // fyInv
+            w as f32 / 2.0,                 // cx
+            h as f32 / 2.0,                 // cy
+        )
     }
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
-    view_proj: [[f32; 4]; 4],
+    mat_view: [[f32; 4]; 4],
+    mat_proj: [[f32; 4]; 4],
+    mat_view_inv: [[f32; 4]; 4],
+    mat_proj_inv: [[f32; 4]; 4],
     eye_pos: [f32; 4],
 }
 
 impl CameraUniform {
     pub fn new() -> Self {
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
+            mat_view: cgmath::Matrix4::identity().into(),
+            mat_proj: cgmath::Matrix4::identity().into(),
+            mat_view_inv: cgmath::Matrix4::identity().into(),
+            mat_proj_inv: cgmath::Matrix4::identity().into(),
             eye_pos: [0.0; 4],
         }
     }
 
     pub fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().into();
+        self.mat_view = camera.build_view_matrix().into();
+        self.mat_proj = camera.build_projection_matrix().into();
+        self.mat_view_inv = camera
+            .build_view_matrix()
+            .inverse_transform()
+            .unwrap()
+            .into();
+        self.mat_proj_inv = camera
+            .build_projection_matrix()
+            .inverse_transform()
+            .unwrap()
+            .into();
         self.eye_pos = [camera.eye.x, camera.eye.y, camera.eye.z, 1.0];
     }
 }

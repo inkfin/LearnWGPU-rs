@@ -1,7 +1,9 @@
 pub struct BindGroupLayoutCache {
     pub texture_bind_group_layout: wgpu::BindGroupLayout,
+    pub particle_depth_texture_bind_group_layout: wgpu::BindGroupLayout,
     pub camera_bind_group_layout: wgpu::BindGroupLayout,
-    pub uniforms_bind_group_layout: wgpu::BindGroupLayout,
+    pub render_uniforms_bind_group_layout: wgpu::BindGroupLayout,
+    pub compute_uniforms_bind_group_layout: wgpu::BindGroupLayout,
     pub world_bind_group_layout: wgpu::BindGroupLayout,
     pub particle_render_bind_group_layout: wgpu::BindGroupLayout,
     pub particle_compute_bind_group_layout: wgpu::BindGroupLayout,
@@ -34,11 +36,34 @@ impl BindGroupLayoutCache {
                 label: Some("texture_bind_group_layout"),
             });
 
+        let particle_depth_texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Depth,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                        count: None,
+                    },
+                ],
+                label: Some("particle_depth_texture_bind_group_layout"),
+            });
+
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -49,7 +74,22 @@ impl BindGroupLayoutCache {
                 label: Some("camera_bind_group_layout"),
             });
 
-        let uniforms_bind_group_layout =
+        let render_uniforms_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("uniform_bind_group_layout"),
+            });
+
+        let compute_uniforms_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -111,8 +151,10 @@ impl BindGroupLayoutCache {
 
         Self {
             texture_bind_group_layout,
+            particle_depth_texture_bind_group_layout,
             camera_bind_group_layout,
-            uniforms_bind_group_layout,
+            render_uniforms_bind_group_layout,
+            compute_uniforms_bind_group_layout,
             world_bind_group_layout,
             particle_render_bind_group_layout,
             particle_compute_bind_group_layout,
