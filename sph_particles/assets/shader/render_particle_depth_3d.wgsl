@@ -3,7 +3,7 @@
 @group(1) @binding(0)
 var<storage, read> particles_in: array<SphParticle>;
 
-const particle_radius: f32 = 0.5;
+const particle_radius: f32 = 0.1;
 
 struct CameraUniform {
     mat_view: mat4x4<f32>,
