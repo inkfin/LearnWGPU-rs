@@ -35,8 +35,6 @@ fn get_zfar() -> f32 {
 
 @group(2) @binding(0)
 var depth_texture: texture_depth_2d;
-@group(2) @binding(1)
-var depth_sampler: sampler;
 
 
 //----------------------------------------------------------------------
@@ -66,24 +64,18 @@ struct VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let pixel_id = vec2<i32>(
-        in.clip_position.xy //* vec2<f32>(get_width(), get_height())
-    );
-    // let depth = textureSample(depth_texture, depth_sampler, in.clip_position.xy);
-    let depth = (1.0 - textureLoad(depth_texture, pixel_id, 0)) * 100;
+    let pixel_id = vec2<i32>(in.clip_position.xy);
+    // let depth = textureLoad(depth_texture, pixel_id, 0);
+
     // calculate normals
-    // let normal = compute_normal(pixel_id);
+    let normal = compute_normal(pixel_id);
 
     // render color
 
     var output: FragmentOutput;
-    // output.color = vec4<f32>(normal, 1.0);
-    // output.color = mix(
-    //     vec4<f32>(0.1, 0.2, 1.0, 1.0),
-    //     vec4<f32>(0.0, 0.0, 0.0, 1.0),
-    //     depth,
-    // );
-    output.color = vec4<f32>(vec3f(depth), 1.0);
+    output.color = vec4<f32>(normal * 0.5 + 0.5, 1.0);
+    //uncomment this to debug depth texture
+    // output.color = vec4<f32>(vec3f(scale_depth(depth)), 1.0);
     return output;
 }
 
@@ -97,36 +89,35 @@ fn z_to_depth(z: f32) -> f32 {
     return lerp(get_znear(), get_zfar(), z);
 }
 
-// fn view_pos(coord: vec2<i32>) -> vec3<f32> {
-//     let depth = textureLoad(depth_texture, coord, 0);
-//     let p_pos = vec4<f32>(vec3<f32>(f32(coord.x), f32(coord.y), depth) * 2.0 - 1.0, 1.0);
-//     let v_pos = camera.mat_proj_inv * p_pos;
-//     return v_pos.xyz / v_pos.w;
-// }
+fn view_pos(coord: vec2<i32>) -> vec3<f32> {
+    let depth = textureLoad(depth_texture, coord, 0) * 2.0 - 1.0; // [0, 1] -> [-1, 1]
+    let uv = vec2f(f32(coord.x) / get_width(), f32(coord.y) / get_height()); // [0, 1]
+    let p_pos = vec4f(uv, depth, 1.0);
+    let v_pos = camera.mat_proj_inv * p_pos;
+    return v_pos.xyz / v_pos.w;
+}
 
-// fn compute_normal(tex_coords: vec2<i32>) -> vec3<f32> {
-//     var ddx = view_pos(tex_coords + vec2<i32>(1, 0));
-//     let ddx2 = view_pos(tex_coords + vec2<i32>(-1, 0));
-//     if abs(ddx.z) > abs(ddx2.z) { ddx = ddx2; }
+fn compute_normal(tex_coords: vec2<i32>) -> vec3<f32> {
+    let pos = view_pos(tex_coords);
+    
+    var ddx = view_pos(tex_coords + vec2<i32>(1, 0)) - pos;
+    let ddx2 = pos - view_pos(tex_coords + vec2<i32>(-1, 0));
+    if abs(ddx.z) > abs(ddx2.z) { ddx = ddx2; }
 
-//     var ddy = view_pos(tex_coords + vec2<i32>(0, 1));
-//     let ddy2 = view_pos(tex_coords + vec2<i32>(0, -1));
-//     if abs(ddy.z) > abs(ddy2.z) { ddy = ddy2; }
+    var ddy = view_pos(tex_coords + vec2<i32>(0, 1)) - pos;
+    let ddy2 = pos - view_pos(tex_coords + vec2<i32>(0, -1));
+    if abs(ddy.z) > abs(ddy2.z) { ddy = ddy2; }
 
-//     let normal: vec3<f32> = normalize(cross(ddx.xyz, ddy.xyz));
+    let normal: vec3<f32> = normalize(cross(ddx.xyz, ddy.xyz));
 
-//     return normal; // change Z scalar to get best effect
-// }
-
-// fn compute_normal(depth: f32, coord: vec2<i32>) -> vec3<f32> {
-//     let p0 = reproject(depth, coord);
-//     let p1 = reproject(depth, coord + vec2<i32>(1, 0));
-//     let p2 = reproject(depth, coord + vec2<i32>(0, 1));
-//     let v0 = p1 - p0;
-//     let v1 = p2 - p0;
-//     return normalize(cross(v0, v1));
-// }
+    return normal; // change Z scalar to get best effect
+}
 
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     return a + (b - a) * t;
+}
+
+// better for displaying
+fn scale_depth(depth: f32) -> f32 {
+    return (1.0 - depth) * 50.0;
 }

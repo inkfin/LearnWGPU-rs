@@ -5,7 +5,7 @@ use crate::{
 };
 use wgpu::{util::DeviceExt, SurfaceConfiguration};
 
-const RENDER_TO_STAGE: i32 = 2;
+const RENDER_TARGET: i32 = 2;
 
 const RENDER_PARTICLE_DEPTH: i32 = 0;
 const RENDER_ALPHA: i32 = 1;
@@ -78,7 +78,8 @@ pub struct RenderUniforms {
 /// The index is set in order of get_bind_group_layouts() vectors
 pub struct RenderState {
     pub _mesh_shader: wgpu::ShaderModule,
-    pub _particle_shader: wgpu::ShaderModule,
+    pub _particle_depth_shader: wgpu::ShaderModule,
+    pub _particle_thickness_shader: wgpu::ShaderModule,
     pub _water_shader: wgpu::ShaderModule,
 
     // render buffers
@@ -87,12 +88,17 @@ pub struct RenderState {
 
     /// The render pipeline defines the layout of data that the GPU will receive
     pub particle_depth_render_pipeline: wgpu::RenderPipeline,
+    pub particle_thickness_render_pipeline: wgpu::RenderPipeline,
     pub depth_to_final_render_pipeline: wgpu::RenderPipeline,
 
     /// depth texture for surface processing
     pub particle_depth_texture: texture::Texture,
     pub water_depth_texture: texture::Texture,
     pub particle_depth_texture_bind_group: wgpu::BindGroup,
+
+    // thickness render pipeline setup
+    pub particle_thickness_texture: texture::Texture,
+    pub particle_thickness_texture_bind_group: wgpu::BindGroup,
 
     pub clear_color: wgpu::Color,
 
@@ -175,18 +181,35 @@ impl RenderState {
         let particle_depth_texture_bind_group =
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &bind_group_layout_cache.particle_depth_texture_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&particle_depth_texture.view),
+                }],
+                label: Some("particle_depth_bind_group"),
+            });
+
+        // thickness setup
+        let particle_thickness_texture =
+            texture::Texture::create_rgba_texture(device, config, "thickness_texture");
+
+        let particle_thickness_texture_bind_group =
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout_cache.particle_thickness_texture_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&particle_depth_texture.view),
+                        resource: wgpu::BindingResource::TextureView(
+                            &particle_thickness_texture.view,
+                        ),
                     },
-                    // load zbuffer directly
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&particle_depth_texture.sampler),
+                        resource: wgpu::BindingResource::Sampler(
+                            &particle_thickness_texture.sampler,
+                        ),
                     },
                 ],
-                label: Some("particle_depth_bind_group"),
+                label: Some("particle_thickness_bind_group"),
             });
 
         let clear_color = wgpu::Color {
@@ -200,9 +223,14 @@ impl RenderState {
         let mesh_shader =
             device.create_shader_module(load_shader("render_mesh.wgsl").await.unwrap());
 
-        let particle_shader =
-            // device.create_shader_module(load_shader("render_particle_2d.wgsl").await.unwrap());
-            device.create_shader_module(load_shader("render_particle_3d.wgsl").await.unwrap());
+        let particle_depth_shader = device
+            .create_shader_module(load_shader("render_particle_depth_3d.wgsl").await.unwrap());
+
+        let particle_thickness_shader = device.create_shader_module(
+            load_shader("render_particle_thickness_3d.wgsl")
+                .await
+                .unwrap(),
+        );
 
         let water_shader =
             device.create_shader_module(load_shader("render_water.wgsl").await.unwrap());
@@ -223,14 +251,14 @@ impl RenderState {
                 label: Some("Depth Render Pipeline Particle"),
                 layout: Some(&particle_depth_render_pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module: &particle_shader,
+                    module: &particle_depth_shader,
                     entry_point: "vs_main",
                     buffers: &[],
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &particle_shader,
+                    module: &particle_depth_shader,
                     entry_point: "fs_main",
-                    targets: &[if RENDER_TO_STAGE == RENDER_PARTICLE_DEPTH {
+                    targets: &[if RENDER_TARGET == RENDER_PARTICLE_DEPTH {
                         Some(wgpu::ColorTargetState {
                             format: config.format,
                             blend: Some(wgpu::BlendState::REPLACE),
@@ -264,6 +292,69 @@ impl RenderState {
                 multiview: None,
             });
 
+        // render particle thickness based on color
+        let blend_state = wgpu::BlendState {
+            color: wgpu::BlendComponent {
+                operation: wgpu::BlendOperation::Add,
+                src_factor: wgpu::BlendFactor::One,
+                dst_factor: wgpu::BlendFactor::One,
+            },
+            alpha: wgpu::BlendComponent {
+                operation: wgpu::BlendOperation::Add,
+                src_factor: wgpu::BlendFactor::One,
+                dst_factor: wgpu::BlendFactor::One,
+            },
+        };
+        let particle_thickness_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout Thickness"),
+                bind_group_layouts: &[
+                    &bind_group_layout_cache.camera_bind_group_layout,
+                    &bind_group_layout_cache.particle_render_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
+
+        let particle_thickness_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Thickness Render Pipeline Particle"),
+                layout: Some(&particle_thickness_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &particle_thickness_shader,
+                    entry_point: "vs_main",
+                    buffers: &[],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &particle_thickness_shader,
+                    entry_point: "fs_main",
+                    targets: &[if RENDER_TARGET == RENDER_ALPHA {
+                        Some(wgpu::ColorTargetState {
+                            format: config.format,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })
+                    } else {
+                        None
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    unclipped_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0u64,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            });
+
         // render water from depth texture
         let depth_to_final_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -289,7 +380,7 @@ impl RenderState {
                 fragment: Some(wgpu::FragmentState {
                     module: &water_shader,
                     entry_point: "fs_main",
-                    targets: &[if RENDER_TO_STAGE == RENDER_WATER {
+                    targets: &[if RENDER_TARGET == RENDER_WATER {
                         Some(wgpu::ColorTargetState {
                             format: config.format,
                             blend: Some(wgpu::BlendState::REPLACE),
@@ -323,7 +414,8 @@ impl RenderState {
             vertex_buffer,
             index_buffer,
             _mesh_shader: mesh_shader,
-            _particle_shader: particle_shader,
+            _particle_depth_shader: particle_depth_shader,
+            _particle_thickness_shader: particle_thickness_shader,
             _water_shader: water_shader,
             particle_depth_render_pipeline,
             depth_to_final_render_pipeline,
@@ -337,6 +429,9 @@ impl RenderState {
             uniform_data,
             uniform_buffer,
             uniform_bind_group,
+            particle_thickness_render_pipeline,
+            particle_thickness_texture,
+            particle_thickness_texture_bind_group,
         }
     }
 
@@ -378,7 +473,7 @@ impl RenderState {
         });
 
         {
-            let color_attachments = if RENDER_TO_STAGE == RENDER_PARTICLE_DEPTH {
+            let color_attachments = if RENDER_TARGET == RENDER_PARTICLE_DEPTH {
                 [Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target: None,
@@ -432,7 +527,7 @@ impl RenderState {
         });
 
         {
-            let color_attachments = if RENDER_TO_STAGE == RENDER_WATER {
+            let color_attachments = if RENDER_TARGET == RENDER_WATER {
                 [Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target: None,
@@ -488,21 +583,11 @@ impl RenderState {
         self.particle_depth_texture_bind_group =
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &bind_group_layout_cache.particle_depth_texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(
-                            &self.particle_depth_texture.view,
-                        ),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(
-                            &self.particle_depth_texture.sampler,
-                        ),
-                    },
-                ],
-                label: Some("sampled_depth_bind_group"),
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&self.particle_depth_texture.view),
+                }],
+                label: Some("particle_depth_bind_group"),
             });
     }
 }
