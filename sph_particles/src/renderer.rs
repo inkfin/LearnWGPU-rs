@@ -1,4 +1,5 @@
 pub(crate) mod compute;
+pub(crate) mod compute_depth_filter;
 pub(crate) mod gpu_cache;
 pub(crate) mod render;
 
@@ -52,7 +53,6 @@ impl Renderer {
 
         self.render_state
             .render_depth(particle_state, device, queue, view);
-        // self.render_state.copy_depth_to_sampled(device, queue);
 
         // self.compute_state.compute_filter
 
@@ -122,7 +122,13 @@ impl Renderer {
             .resize(device, surface_config, bind_group_layout_cache);
     }
 
-    pub fn update(&mut self, camera: &Camera, surface_config: &wgpu::SurfaceConfiguration, queue: &wgpu::Queue) {
-        self.render_state.update_uniforms(camera, surface_config, queue);
+    pub fn update(
+        &mut self,
+        camera: &Camera,
+        surface_config: &wgpu::SurfaceConfiguration,
+        queue: &wgpu::Queue,
+    ) {
+        self.render_state
+            .update_uniforms(camera, surface_config, queue);
     }
 }

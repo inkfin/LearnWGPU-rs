@@ -19,7 +19,6 @@ impl ComputeUniforms {
 }
 
 pub struct ComputeState {
-    #[allow(dead_code)]
     pub shader: wgpu::ShaderModule,
 
     #[allow(dead_code)]
