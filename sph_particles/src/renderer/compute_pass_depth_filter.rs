@@ -33,12 +33,13 @@ pub struct DepthFilter {
     // storage buffers
     buffer_kernel_indices_5x5: wgpu::Buffer,
     buffer_kernel_indices_9x9: wgpu::Buffer,
-    buffer_kernel_indices_bind_group: wgpu::BindGroup,
+    buffer_kernel_indices_5x5_bind_group: wgpu::BindGroup,
+    buffer_kernel_indices_9x9_bind_group: wgpu::BindGroup,
     buffer_kernel_indices_bind_group_layout: wgpu::BindGroupLayout,
 
     // depth texture bind group layout
-    in_texture_bind_group_layout: wgpu::BindGroupLayout,
-    out_texture_bind_group_layout: wgpu::BindGroupLayout,
+    texture_bind_group_layout_0: wgpu::BindGroupLayout,
+    texture_bind_group_layout_1: wgpu::BindGroupLayout,
 
     compute_pipeline: wgpu::ComputePipeline,
 }
@@ -46,69 +47,76 @@ pub struct DepthFilter {
 impl DepthFilter {
     pub fn filter(
         &mut self,
-        depth_texture_in: &Texture,
-        depth_texture_out: &Texture,
+        depth_texture_0: &Texture,
+        depth_texture_1: &Texture,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         assert!(
-            depth_texture_in.texture.size() == depth_texture_out.texture.size(),
+            depth_texture_0.texture.size() == depth_texture_1.texture.size(),
             "Input and output textures must have the same size"
         );
 
-        let in_texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let texture_bind_group_0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Depth Filter In Texture Bind Group"),
-            layout: &self.in_texture_bind_group_layout,
+            layout: &self.texture_bind_group_layout_0,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&depth_texture_in.view),
+                resource: wgpu::BindingResource::TextureView(&depth_texture_0.view),
             }],
         });
 
-        let out_texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let texture_bind_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Depth Filter Out Texture Bind Group"),
-            layout: &self.out_texture_bind_group_layout,
+            layout: &self.texture_bind_group_layout_1,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&depth_texture_out.view),
+                resource: wgpu::BindingResource::TextureView(&depth_texture_1.view),
             }],
         });
+
+        let (mut depth_texture_in, mut depth_texture_out) = (depth_texture_0, depth_texture_1);
+        let (mut texture_bind_group_in, mut texture_bind_group_out) =
+            (texture_bind_group_0, texture_bind_group_1);
 
         let mut staging_belt = wgpu::util::StagingBelt::new(0x100);
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Depth Filter Encoder"),
-        });
-
         self.uniforms_data.indexes_size = 25;
         for i in 0..5 {
-            // update uniforms
-            self.uniforms_data.filter_interval = 2f32.powi(i) as i32;
-
-            self.update_uniforms(&mut staging_belt, &mut encoder, device);
-
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("Depth Filter Pass"),
-                timestamp_writes: None,
+            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Depth Filter Encoder"),
             });
 
-            compute_pass.set_pipeline(&self.compute_pipeline);
-            compute_pass.set_bind_group(0, &self.uniforms_bind_group, &[]);
-            compute_pass.set_bind_group(1, &self.buffer_kernel_indices_bind_group, &[]);
-            compute_pass.set_bind_group(2, &self.depth_filter_bind_group, &[]);
-            compute_pass.set_bind_group(3, &in_texture_bind_group, &[]);
-            compute_pass.set_bind_group(4, &out_texture_bind_group, &[]);
-            compute_pass.dispatch_workgroups(
-                depth_texture_in.texture.size().width / 16,
-                depth_texture_in.texture.size().height / 16,
-                1,
-            );
+            // update uniforms
+            self.uniforms_data.filter_interval = 2i32.pow(i);
+            self.update_uniforms(&mut staging_belt, &mut encoder, device);
+            {
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("Depth Filter Pass"),
+                    timestamp_writes: None,
+                });
+
+                compute_pass.set_pipeline(&self.compute_pipeline);
+                compute_pass.set_bind_group(0, &self.uniforms_bind_group, &[]);
+                compute_pass.set_bind_group(1, &self.buffer_kernel_indices_5x5_bind_group, &[]);
+                compute_pass.set_bind_group(2, &self.depth_filter_bind_group, &[]);
+                compute_pass.set_bind_group(3, &texture_bind_group_in, &[]);
+                compute_pass.set_bind_group(4, &texture_bind_group_out, &[]);
+                compute_pass.dispatch_workgroups(
+                    depth_texture_in.texture.size().width / 16,
+                    depth_texture_in.texture.size().height / 16,
+                    1,
+                );
+            }
+            queue.submit(std::iter::once(encoder.finish()));
+            // swap input and output
+            (depth_texture_in, depth_texture_out) = (depth_texture_out, depth_texture_in);
+            (texture_bind_group_in, texture_bind_group_out) =
+                (texture_bind_group_out, texture_bind_group_in);
+
+            // don't forget to recall staging belt
+            staging_belt.recall();
         }
-
-        queue.submit(std::iter::once(encoder.finish()));
-
-        // don't forget to recall staging belt
-        staging_belt.recall();
     }
 
     pub async fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
@@ -131,11 +139,12 @@ impl DepthFilter {
         let (
             buffer_kernel_indices_5x5,
             buffer_kernel_indices_9x9,
-            buffer_kernel_indices_bind_group,
+            buffer_kernel_indices_5x5_bind_group,
+            buffer_kernel_indices_9x9_bind_group,
             buffer_kernel_indices_bind_group_layout,
         ) = setup_kernel_buffers(device);
 
-        let (in_texture_bind_group_layout, out_texture_bind_group_layout) =
+        let (texture_bind_group_layout_0, texture_bind_group_layout_1) =
             init_texture_bind_groups(device);
 
         let compute_pipeline = build_shader(
@@ -143,8 +152,8 @@ impl DepthFilter {
                 &uniforms_bind_group_layout,
                 &buffer_kernel_indices_bind_group_layout,
                 &depth_filter_bind_group_layout,
-                &in_texture_bind_group_layout,
-                &out_texture_bind_group_layout,
+                &texture_bind_group_layout_0,
+                &texture_bind_group_layout_1,
             ],
             device,
         )
@@ -161,10 +170,11 @@ impl DepthFilter {
             uniforms_bind_group_layout,
             buffer_kernel_indices_5x5,
             buffer_kernel_indices_9x9,
-            buffer_kernel_indices_bind_group,
+            buffer_kernel_indices_5x5_bind_group,
+            buffer_kernel_indices_9x9_bind_group,
             buffer_kernel_indices_bind_group_layout,
-            in_texture_bind_group_layout,
-            out_texture_bind_group_layout,
+            texture_bind_group_layout_0,
+            texture_bind_group_layout_1,
             compute_pipeline,
         }
     }
@@ -343,6 +353,7 @@ fn setup_kernel_buffers(
     wgpu::Buffer,
     wgpu::Buffer,
     wgpu::BindGroup,
+    wgpu::BindGroup,
     wgpu::BindGroupLayout,
 ) {
     // ssb
@@ -363,49 +374,43 @@ fn setup_kernel_buffers(
     let buffer_kernel_indices_bind_group_layout =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Kernel Indices Bind Group Layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
                 },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
+                count: None,
+            }],
         });
 
-    let buffer_kernel_indices_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("Kernel Indices Bind Group"),
-        layout: &buffer_kernel_indices_bind_group_layout,
-        entries: &[
-            BindGroupEntry {
+    let buffer_kernel_indices_bind_group_5x5 =
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Kernel Indices Bind Group"),
+            layout: &buffer_kernel_indices_bind_group_layout,
+            entries: &[BindGroupEntry {
                 binding: 0,
                 resource: buffer_kernel_indices_5x5.as_entire_binding(),
-            },
-            BindGroupEntry {
+            }],
+        });
+
+    let buffer_kernel_indices_bind_group_9x9 =
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Kernel Indices Bind Group"),
+            layout: &buffer_kernel_indices_bind_group_layout,
+            entries: &[BindGroupEntry {
                 binding: 1,
                 resource: buffer_kernel_indices_9x9.as_entire_binding(),
-            },
-        ],
-    });
+            }],
+        });
 
     (
         buffer_kernel_indices_5x5,
         buffer_kernel_indices_9x9,
-        buffer_kernel_indices_bind_group,
+        buffer_kernel_indices_bind_group_5x5,
+        buffer_kernel_indices_bind_group_9x9,
         buffer_kernel_indices_bind_group_layout,
     )
 }

@@ -18,7 +18,7 @@ impl ComputeUniforms {
     }
 }
 
-pub struct ComputeState {
+pub struct ComputeParticlePass {
     pub shader: wgpu::ShaderModule,
 
     #[allow(dead_code)]
@@ -37,10 +37,10 @@ pub struct ComputeState {
     pub uniforms_bind_group: wgpu::BindGroup,
 }
 
-impl ComputeState {
+impl ComputeParticlePass {
     pub async fn new(
         device: &wgpu::Device,
-        bind_group_layout_cache: &super::gpu_cache::BindGroupLayoutCache,
+        bind_group_layout_cache: &super::bind_group_layout_cache::BindGroupLayoutCache,
     ) -> Self {
         let shader =
             // device.create_shader_module(load_shader("compute_particle_2d.wgsl").await.unwrap());

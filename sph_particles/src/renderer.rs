@@ -1,13 +1,29 @@
-pub(crate) mod compute;
-pub(crate) mod compute_depth_filter;
-pub(crate) mod gpu_cache;
-pub(crate) mod render;
+pub(crate) mod bind_group_layout_cache;
+pub(crate) mod compute_pass_depth_filter;
+pub(crate) mod compute_pass_particle;
+pub(crate) mod render_pass_depth;
+pub(crate) mod render_pass_water;
 
 use std::sync::Arc;
 
-use compute::{ComputeState, ComputeUniforms};
-pub(crate) use gpu_cache::BindGroupLayoutCache;
-use render::RenderState;
+pub(crate) use bind_group_layout_cache::BindGroupLayoutCache;
+
+use compute_pass_particle::ComputeParticlePass;
+use render_pass_depth::RenderDepthPass;
+use render_pass_water::RenderQuadPass;
+
+const RENDER_TARGET: i32 = 2;
+
+const RENDER_PARTICLE_DEPTH: i32 = 0;
+const RENDER_ALPHA: i32 = 1;
+const RENDER_WATER: i32 = 2;
+
+const CLEAR_COLOR: wgpu::Color = wgpu::Color {
+    r: 0.01,
+    g: 0.01,
+    b: 0.01,
+    a: 1.0,
+};
 
 use crate::{
     camera::{self, Camera},
@@ -15,8 +31,9 @@ use crate::{
 };
 
 pub struct Renderer {
-    pub render_state: RenderState,
-    pub compute_state: ComputeState,
+    pub render_depth_pass: RenderDepthPass,
+    pub render_quad_pass: RenderQuadPass,
+    pub compute_pass: ComputeParticlePass,
 }
 
 impl Renderer {
@@ -26,12 +43,17 @@ impl Renderer {
         surface_config: &wgpu::SurfaceConfiguration,
         bind_group_layout_cache: &BindGroupLayoutCache,
     ) -> Self {
-        let compute_state = ComputeState::new(device, bind_group_layout_cache).await;
-        let render_state =
-            RenderState::new(device, camera, surface_config, bind_group_layout_cache).await;
+        let compute_state = ComputeParticlePass::new(device, bind_group_layout_cache).await;
+        let render_depth_pass =
+            RenderDepthPass::new(device, camera, surface_config, bind_group_layout_cache).await;
+
+        let render_quad_pass =
+            RenderQuadPass::new(device, camera, surface_config, bind_group_layout_cache).await;
+
         Self {
-            render_state,
-            compute_state,
+            render_depth_pass,
+            render_quad_pass,
+            compute_pass: compute_state,
         }
     }
 
@@ -43,73 +65,26 @@ impl Renderer {
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
     ) {
-        futures::executor::block_on(self.compute_state.sort_particle_data(
+        futures::executor::block_on(self.compute_pass.sort_particle_data(
             device,
             queue,
             particle_state,
         ));
-        self.compute_state
+        self.compute_pass
             .compute_sph(device, queue, particle_state, dt);
 
-        self.render_state
-            .render_depth(particle_state, device, queue, view);
+        self.render_depth_pass
+            .render(particle_state, device, queue, view);
 
         // self.compute_state.compute_filter
 
         // self.render_state.render_final
-        self.render_state.render_water(device, queue, view);
-
-        // let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        //     label: Some("staging_buffer"),
-        //     size: depth_texture.texture.size().width as u64
-        //         * depth_texture.texture.size().height as u64,
-        //     usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        //     mapped_at_creation: false,
-        // });
-
-        // let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        //     label: Some("Texture Copy Encoder"),
-        // });
-
-        // encoder.copy_texture_to_buffer(
-        //     wgpu::ImageCopyTexture {
-        //         texture: &self.depth_texture.texture,
-        //         mip_level: 0,
-        //         origin: wgpu::Origin3d::ZERO,
-        //         aspect: wgpu::TextureAspect::All,
-        //     },
-        //     wgpu::ImageCopyBuffer {
-        //         buffer: &self.staging_buffer,
-        //         layout: wgpu::ImageDataLayout {
-        //             offset: 0,
-        //             bytes_per_row: Some(4 * self.depth_texture.texture.size().width),
-        //             rows_per_image: Some(self.depth_texture.texture.size().height),
-        //         },
-        //     },
-        //     self.depth_texture.texture.size(),
-        // );
-
-        // queue.submit(Some(encoder.finish()));
-
-        // staging_buffer
-        //     .slice(..)
-        //     .map_async(wgpu::MapMode::Read, move |result| {
-        //         if result.is_ok() {
-        //             let data = staging_buffer.slice(..).get_mapped_range();
-        //             let data_array: &[f32] = bytemuck::cast_slice(&data);
-
-        //             let (min_val, max_val) = data_array
-        //                 .iter()
-        //                 .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), &val| {
-        //                     (min.min(val), max.max(val))
-        //                 });
-
-        //             println!("depth texture min: {}, max: {}", min_val, max_val);
-        //             staging_buffer.unmap();
-        //         } else {
-        //             eprintln!("Failed to map the buffer");
-        //         }
-        //     });
+        self.render_quad_pass.render(
+            &self.render_depth_pass.particle_depth_texture_bind_group,
+            device,
+            queue,
+            view,
+        );
     }
 
     pub fn resize(
@@ -118,7 +93,9 @@ impl Renderer {
         surface_config: &wgpu::SurfaceConfiguration,
         bind_group_layout_cache: &BindGroupLayoutCache,
     ) {
-        self.render_state
+        self.render_depth_pass
+            .resize(device, surface_config, bind_group_layout_cache);
+        self.render_quad_pass
             .resize(device, surface_config, bind_group_layout_cache);
     }
 
@@ -128,7 +105,9 @@ impl Renderer {
         surface_config: &wgpu::SurfaceConfiguration,
         queue: &wgpu::Queue,
     ) {
-        self.render_state
+        self.render_depth_pass
             .update_uniforms(camera, surface_config, queue);
+        self.render_quad_pass
+            .update_uniforms(camera, surface_config, queue)
     }
 }
