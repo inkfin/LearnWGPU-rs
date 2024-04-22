@@ -96,6 +96,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
     var output: FragmentOutput;
     output.color = vec4f(color, 1.0);
+    // uncomment this to debug normal texture
     // output.color = vec4<f32>(normal, 1.0);
     //uncomment this to debug depth texture
     // output.color = vec4<f32>(vec3f(scale_depth(depth)), 1.0);

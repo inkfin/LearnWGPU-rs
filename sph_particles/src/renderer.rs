@@ -10,6 +10,7 @@ use std::sync::Arc;
 pub(crate) use bind_group_layout_cache::BindGroupLayoutCache;
 
 use compute_pass_copy_depth::CopyDepthPass;
+use compute_pass_depth_filter::ComputeDepthFilterPass;
 use compute_pass_particle::ComputeParticlePass;
 use render_pass_depth::RenderDepthPass;
 use render_pass_water::RenderQuadPass;
@@ -38,31 +39,38 @@ pub struct Renderer {
     pub render_quad_pass: RenderQuadPass,
     pub compute_particle_pass: ComputeParticlePass,
     pub copy_depth_pass: CopyDepthPass,
+    pub compute_depth_filter_pass: ComputeDepthFilterPass,
 }
 
 impl Renderer {
     pub async fn new(
         device: &wgpu::Device,
+        queue: &wgpu::Queue,
         camera: &Camera,
         surface_config: &wgpu::SurfaceConfiguration,
         bind_group_layout_cache: &BindGroupLayoutCache,
     ) -> Self {
-        let compute_particle_pass = ComputeParticlePass::new(device, bind_group_layout_cache).await;
-
-        let copy_depth_pass =
-            CopyDepthPass::new(device, surface_config, bind_group_layout_cache).await;
-
         let render_depth_pass =
             RenderDepthPass::new(device, camera, surface_config, bind_group_layout_cache).await;
 
         let render_quad_pass =
             RenderQuadPass::new(device, camera, surface_config, bind_group_layout_cache).await;
 
+        let compute_particle_pass = ComputeParticlePass::new(device, bind_group_layout_cache).await;
+
+        let copy_depth_pass =
+            CopyDepthPass::new(device, surface_config, bind_group_layout_cache).await;
+
+        let compute_depth_filter_pass =
+            ComputeDepthFilterPass::new(device, queue, surface_config, bind_group_layout_cache)
+                .await;
+
         Self {
             render_depth_pass,
             render_quad_pass,
             compute_particle_pass,
             copy_depth_pass,
+            compute_depth_filter_pass,
         }
     }
 
@@ -72,6 +80,7 @@ impl Renderer {
         particle_state: &mut ParticleState,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        surface_config: &wgpu::SurfaceConfiguration,
         view: &wgpu::TextureView,
     ) {
         futures::executor::block_on(self.compute_particle_pass.sort_particle_data(
@@ -102,6 +111,14 @@ impl Renderer {
                 .sampled_depth_texture_write_bind_group_1,
         );
 
+        self.compute_depth_filter_pass.filter(
+            surface_config,
+            [depth_read_bg_0, depth_read_bg_1],
+            [depth_write_bg_0, depth_write_bg_1],
+            device,
+            queue,
+        );
+
         // self.compute_state.compute_filter
 
         // self.render_state.render_final
@@ -121,6 +138,8 @@ impl Renderer {
             .resize(device, surface_config, bind_group_layout_cache);
         self.copy_depth_pass
             .resize(device, surface_config, bind_group_layout_cache);
+        self.compute_depth_filter_pass
+            .resize(device, surface_config);
     }
 
     pub fn update(
@@ -132,6 +151,7 @@ impl Renderer {
         self.render_depth_pass
             .update_uniforms(camera, surface_config, queue);
         self.render_quad_pass
-            .update_uniforms(camera, surface_config, queue)
+            .update_uniforms(camera, surface_config, queue);
+        self.copy_depth_pass.update_uniforms(queue);
     }
 }

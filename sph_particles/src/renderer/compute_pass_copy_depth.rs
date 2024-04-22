@@ -12,8 +12,6 @@ struct ComputeUniforms {
 }
 
 pub struct CopyDepthPass {
-    _shader: wgpu::ShaderModule,
-
     // copy the depth texture and store it in normal texture
     pub sampled_depth_texture_0: texture::Texture,
     pub sampled_depth_texture_1: texture::Texture,
@@ -96,7 +94,6 @@ impl CopyDepthPass {
         });
 
         Self {
-            _shader: shader,
             sampled_depth_texture_0,
             sampled_depth_texture_1,
             sampled_depth_texture_write_bind_group_0,
@@ -153,12 +150,25 @@ impl CopyDepthPass {
         queue.submit(vec![encoder.finish()]);
     }
 
+    pub fn update_uniforms(&self, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.uniforms_buffer,
+            0,
+            bytemuck::cast_slice(&[self.uniforms_data]),
+        );
+    }
+
     pub fn resize(
         &mut self,
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
         bind_group_layout_cache: &BindGroupLayoutCache,
     ) {
+        self.uniforms_data = ComputeUniforms {
+            width: surface_config.width,
+            height: surface_config.height,
+        };
+
         (
             self.sampled_depth_texture_0,
             self.sampled_depth_texture_1,

@@ -8,6 +8,8 @@ use wgpu::{
 
 use crate::resources::load_shader;
 
+use super::BindGroupLayoutCache;
+
 #[repr(C)]
 #[derive(Clone, Copy, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct UniformsData {
@@ -15,69 +17,46 @@ pub struct UniformsData {
     pub sigma2: f32,
     pub indexes_size: i32,
     pub filter_interval: i32,
+    pub width: i32,
+    pub height: i32,
 }
 
-pub struct DepthFilter {
+pub struct ComputeDepthFilterPass {
     // depth filters as texture
-    texture_depth_filter: wgpu::Texture,
-    sampler_depth_filter: wgpu::Sampler,
-    depth_filter_bind_group: wgpu::BindGroup,
-    depth_filter_bind_group_layout: wgpu::BindGroupLayout,
+    texture_weight: wgpu::Texture,
+    sampler_weight: wgpu::Sampler,
+    texture_weight_bind_group: wgpu::BindGroup,
+    texture_weight_bind_group_layout: wgpu::BindGroupLayout,
 
     // uniforms
     uniforms_data: UniformsData,
     uniforms_buffer: wgpu::Buffer,
-    uniforms_bind_group: wgpu::BindGroup,
-    uniforms_bind_group_layout: wgpu::BindGroupLayout,
 
     // storage buffers
     buffer_kernel_indices_5x5: wgpu::Buffer,
     buffer_kernel_indices_9x9: wgpu::Buffer,
     buffer_kernel_indices_5x5_bind_group: wgpu::BindGroup,
     buffer_kernel_indices_9x9_bind_group: wgpu::BindGroup,
-    buffer_kernel_indices_bind_group_layout: wgpu::BindGroupLayout,
 
-    // depth texture bind group layout
-    texture_bind_group_layout_0: wgpu::BindGroupLayout,
-    texture_bind_group_layout_1: wgpu::BindGroupLayout,
+    buffer_bind_group_layout: wgpu::BindGroupLayout,
 
     compute_pipeline: wgpu::ComputePipeline,
 }
 
-impl DepthFilter {
+impl ComputeDepthFilterPass {
     pub fn filter(
         &mut self,
-        depth_texture_0: &Texture,
-        depth_texture_1: &Texture,
+        config: &wgpu::SurfaceConfiguration,
+        depth_texture_read_bind_groups: [&wgpu::BindGroup; 2],
+        depth_texture_write_bind_groups: [&wgpu::BindGroup; 2],
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        assert!(
-            depth_texture_0.texture.size() == depth_texture_1.texture.size(),
-            "Input and output textures must have the same size"
+        let (x, y, z) = (
+            (config.width as f32 / 16.0).ceil() as u32,
+            (config.height as f32 / 16.0).ceil() as u32,
+            1,
         );
-
-        let texture_bind_group_0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Depth Filter In Texture Bind Group"),
-            layout: &self.texture_bind_group_layout_0,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&depth_texture_0.view),
-            }],
-        });
-
-        let texture_bind_group_1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Depth Filter Out Texture Bind Group"),
-            layout: &self.texture_bind_group_layout_1,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&depth_texture_1.view),
-            }],
-        });
-
-        let (mut depth_texture_in, mut depth_texture_out) = (depth_texture_0, depth_texture_1);
-        let (mut texture_bind_group_in, mut texture_bind_group_out) =
-            (texture_bind_group_0, texture_bind_group_1);
 
         let mut staging_belt = wgpu::util::StagingBelt::new(0x100);
 
@@ -97,84 +76,106 @@ impl DepthFilter {
                 });
 
                 compute_pass.set_pipeline(&self.compute_pipeline);
-                compute_pass.set_bind_group(0, &self.uniforms_bind_group, &[]);
-                compute_pass.set_bind_group(1, &self.buffer_kernel_indices_5x5_bind_group, &[]);
-                compute_pass.set_bind_group(2, &self.depth_filter_bind_group, &[]);
-                compute_pass.set_bind_group(3, &texture_bind_group_in, &[]);
-                compute_pass.set_bind_group(4, &texture_bind_group_out, &[]);
-                compute_pass.dispatch_workgroups(
-                    depth_texture_in.texture.size().width / 16,
-                    depth_texture_in.texture.size().height / 16,
-                    1,
+                compute_pass.set_bind_group(0, &self.buffer_kernel_indices_5x5_bind_group, &[]);
+                compute_pass.set_bind_group(1, &self.texture_weight_bind_group, &[]);
+                compute_pass.set_bind_group(
+                    2,
+                    depth_texture_read_bind_groups[(i % 2) as usize],
+                    &[],
                 );
+                compute_pass.set_bind_group(
+                    3,
+                    depth_texture_write_bind_groups[((i + 1) % 2) as usize],
+                    &[],
+                );
+                compute_pass.dispatch_workgroups(x, y, z);
             }
-            queue.submit(std::iter::once(encoder.finish()));
-            // swap input and output
-            (depth_texture_in, depth_texture_out) = (depth_texture_out, depth_texture_in);
-            (texture_bind_group_in, texture_bind_group_out) =
-                (texture_bind_group_out, texture_bind_group_in);
+            queue.submit(Some(encoder.finish()));
 
             // don't forget to recall staging belt
             staging_belt.recall();
         }
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Depth Filter Encoder"),
+        });
+
+        self.uniforms_data.indexes_size = 81;
+        self.uniforms_data.filter_interval = 1;
+        self.update_uniforms(&mut staging_belt, &mut encoder, device);
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("Depth Filter Pass"),
+                timestamp_writes: None,
+            });
+
+            compute_pass.set_pipeline(&self.compute_pipeline);
+            compute_pass.set_bind_group(0, &self.buffer_kernel_indices_9x9_bind_group, &[]);
+            compute_pass.set_bind_group(1, &self.texture_weight_bind_group, &[]);
+            compute_pass.set_bind_group(2, depth_texture_read_bind_groups[1], &[]);
+            compute_pass.set_bind_group(3, depth_texture_write_bind_groups[0], &[]);
+            compute_pass.dispatch_workgroups(x, y, z);
+        }
+        queue.submit(Some(encoder.finish()));
+
+        // don't forget to recall staging belt
+        staging_belt.recall();
     }
 
-    pub async fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+    pub async fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        surface_config: &wgpu::SurfaceConfiguration,
+        bind_group_layout_cache: &BindGroupLayoutCache,
+    ) -> Self {
         let uniforms_data = UniformsData {
             sigma1: 8.0,
             sigma2: 0.025,
             indexes_size: 25,
             filter_interval: 1,
+            width: surface_config.width as i32,
+            height: surface_config.height as i32,
         };
         let (
-            texture_depth_filter,
-            sampler_depth_filter,
-            depth_filter_bind_group,
-            depth_filter_bind_group_layout,
+            texture_weight,
+            sampler_weight,
+            texture_weight_bind_group,
+            texture_weight_bind_group_layout,
         ) = init_weight_texture(uniforms_data.sigma1, uniforms_data.sigma2, device, queue);
 
-        let (uniforms_data, uniforms_buffer, uniforms_bind_group, uniforms_bind_group_layout) =
-            setup_uniform_buffer(uniforms_data, device);
-
         let (
+            uniforms_data,
+            uniforms_buffer,
             buffer_kernel_indices_5x5,
             buffer_kernel_indices_9x9,
             buffer_kernel_indices_5x5_bind_group,
             buffer_kernel_indices_9x9_bind_group,
-            buffer_kernel_indices_bind_group_layout,
-        ) = setup_kernel_buffers(device);
-
-        let (texture_bind_group_layout_0, texture_bind_group_layout_1) =
-            init_texture_bind_groups(device);
+            buffer_bind_group_layout,
+        ) = setup_uniform_kernel_buffers(uniforms_data, device);
 
         let compute_pipeline = build_shader(
             vec![
-                &uniforms_bind_group_layout,
-                &buffer_kernel_indices_bind_group_layout,
-                &depth_filter_bind_group_layout,
-                &texture_bind_group_layout_0,
-                &texture_bind_group_layout_1,
+                &buffer_bind_group_layout,
+                &texture_weight_bind_group_layout,
+                &bind_group_layout_cache.sampled_depth_texture_read_bind_group_layout,
+                &bind_group_layout_cache.sampled_depth_texture_write_bind_group_layout,
             ],
             device,
         )
         .await;
 
         Self {
-            texture_depth_filter,
-            sampler_depth_filter,
-            depth_filter_bind_group,
-            depth_filter_bind_group_layout,
+            texture_weight,
+            sampler_weight,
+            texture_weight_bind_group,
+            texture_weight_bind_group_layout,
             uniforms_data,
             uniforms_buffer,
-            uniforms_bind_group,
-            uniforms_bind_group_layout,
             buffer_kernel_indices_5x5,
             buffer_kernel_indices_9x9,
             buffer_kernel_indices_5x5_bind_group,
             buffer_kernel_indices_9x9_bind_group,
-            buffer_kernel_indices_bind_group_layout,
-            texture_bind_group_layout_0,
-            texture_bind_group_layout_1,
+            buffer_bind_group_layout,
             compute_pipeline,
         }
     }
@@ -196,6 +197,11 @@ impl DepthFilter {
             )
             .copy_from_slice(bytemuck::cast_slice(&[self.uniforms_data]));
         staging_belt.finish();
+    }
+
+    pub fn resize(&mut self, device: &wgpu::Device, surface_config: &wgpu::SurfaceConfiguration) {
+        self.uniforms_data.width = surface_config.width as i32;
+        self.uniforms_data.height = surface_config.height as i32;
     }
 }
 
@@ -220,7 +226,7 @@ fn init_weight_texture(
         }
     }
 
-    let texture_depth_filter = device.create_texture_with_data(
+    let texture_weight = device.create_texture_with_data(
         queue,
         &wgpu::TextureDescriptor {
             label: Some("Depth Filter Texture"),
@@ -240,20 +246,20 @@ fn init_weight_texture(
         bytemuck::cast_slice(&weights),
     );
 
-    let sampler_depth_filter = device.create_sampler(&wgpu::SamplerDescriptor {
+    let sampler_weight = device.create_sampler(&wgpu::SamplerDescriptor {
         label: None,
         address_mode_u: wgpu::AddressMode::ClampToEdge,
         address_mode_v: wgpu::AddressMode::ClampToEdge,
         address_mode_w: wgpu::AddressMode::ClampToEdge,
-        mag_filter: wgpu::FilterMode::Linear,
-        min_filter: wgpu::FilterMode::Linear,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
         mipmap_filter: wgpu::FilterMode::Nearest,
         ..Default::default()
     });
 
-    let depth_filter_bind_group_layout =
+    let texture_weight_bind_group_layout =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Depth Filter Bind Group Layout"),
+            label: Some("Texture Weight Bind Group Layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -261,50 +267,56 @@ fn init_weight_texture(
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
+                // wgpu::BindGroupLayoutEntry {
+                //     binding: 1,
+                //     visibility: wgpu::ShaderStages::COMPUTE,
+                //     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                //     count: None,
+                // },
             ],
         });
 
-    let depth_filter_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("Depth Filter Bind Group"),
-        layout: &depth_filter_bind_group_layout,
+    let texture_weight_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Texture Weight Bind Group"),
+        layout: &texture_weight_bind_group_layout,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(
-                    &texture_depth_filter.create_view(&wgpu::TextureViewDescriptor::default()),
-                ),
+                resource: wgpu::BindingResource::TextureView(&texture_weight.create_view(
+                    &wgpu::TextureViewDescriptor {
+                        format: wgpu::TextureFormat::R32Float.into(),
+                        ..Default::default()
+                    },
+                )),
             },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler_depth_filter),
-            },
+            // wgpu::BindGroupEntry {
+            //     binding: 1,
+            //     resource: wgpu::BindingResource::Sampler(&sampler_weight),
+            // },
         ],
     });
 
     (
-        texture_depth_filter,
-        sampler_depth_filter,
-        depth_filter_bind_group,
-        depth_filter_bind_group_layout,
+        texture_weight,
+        sampler_weight,
+        texture_weight_bind_group,
+        texture_weight_bind_group_layout,
     )
 }
 
-fn setup_uniform_buffer(
+fn setup_uniform_kernel_buffers(
     uniforms_data: UniformsData,
     device: &wgpu::Device,
 ) -> (
     UniformsData,
     wgpu::Buffer,
+    wgpu::Buffer,
+    wgpu::Buffer,
+    wgpu::BindGroup,
     wgpu::BindGroup,
     wgpu::BindGroupLayout,
 ) {
@@ -315,47 +327,6 @@ fn setup_uniform_buffer(
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
-    let uniforms_bind_group_layout =
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
-
-    let uniforms_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: None,
-        layout: &uniforms_bind_group_layout,
-        entries: &[BindGroupEntry {
-            binding: 0,
-            resource: uniforms_buffer.as_entire_binding(),
-        }],
-    });
-
-    (
-        uniforms_data,
-        uniforms_buffer,
-        uniforms_bind_group,
-        uniforms_bind_group_layout,
-    )
-}
-
-fn setup_kernel_buffers(
-    device: &wgpu::Device,
-) -> (
-    wgpu::Buffer,
-    wgpu::Buffer,
-    wgpu::BindGroup,
-    wgpu::BindGroup,
-    wgpu::BindGroupLayout,
-) {
     // ssb
     let indices_5x5 = generate_indices(2);
     let buffer_kernel_indices_5x5 = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -371,11 +342,21 @@ fn setup_kernel_buffers(
         usage: wgpu::BufferUsages::STORAGE,
     });
 
-    let buffer_kernel_indices_bind_group_layout =
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Kernel Indices Bind Group Layout"),
-            entries: &[BindGroupLayoutEntry {
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Kernel Indices Bind Group Layout"),
+        entries: &[
+            BindGroupLayoutEntry {
                 binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            BindGroupLayoutEntry {
+                binding: 1,
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -383,72 +364,51 @@ fn setup_kernel_buffers(
                     min_binding_size: None,
                 },
                 count: None,
-            }],
-        });
+            },
+        ],
+    });
 
     let buffer_kernel_indices_bind_group_5x5 =
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Kernel Indices Bind Group"),
-            layout: &buffer_kernel_indices_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer_kernel_indices_5x5.as_entire_binding(),
-            }],
+            label: Some("Kernel Indices 5x5 Bind Group"),
+            layout: &bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniforms_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: buffer_kernel_indices_5x5.as_entire_binding(),
+                },
+            ],
         });
 
     let buffer_kernel_indices_bind_group_9x9 =
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Kernel Indices Bind Group"),
-            layout: &buffer_kernel_indices_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 1,
-                resource: buffer_kernel_indices_9x9.as_entire_binding(),
-            }],
+            label: Some("Kernel Indices 9x9 Bind Group"),
+            layout: &bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: uniforms_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: buffer_kernel_indices_9x9.as_entire_binding(),
+                },
+            ],
         });
 
     (
+        uniforms_data,
+        uniforms_buffer,
         buffer_kernel_indices_5x5,
         buffer_kernel_indices_9x9,
         buffer_kernel_indices_bind_group_5x5,
         buffer_kernel_indices_bind_group_9x9,
-        buffer_kernel_indices_bind_group_layout,
+        bind_group_layout,
     )
-}
-
-fn init_texture_bind_groups(
-    device: &wgpu::Device,
-) -> (wgpu::BindGroupLayout, wgpu::BindGroupLayout) {
-    let in_texture_bind_group_layout =
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Depth Filter In Texture Bind Group Layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Depth,
-                },
-                count: None,
-            }],
-        });
-
-    let out_texture_bind_group_layout =
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Depth Filter Out Texture Bind Group Layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Depth,
-                },
-                count: None,
-            }],
-        });
-
-    (in_texture_bind_group_layout, out_texture_bind_group_layout)
 }
 
 async fn build_shader(

@@ -166,7 +166,14 @@ impl State {
 
         let bind_group_layout_cache = BindGroupLayoutCache::new(&device);
 
-        let renderer = Renderer::new(&device, &camera, &surface_config, &bind_group_layout_cache).await;
+        let renderer = Renderer::new(
+            &device,
+            &queue,
+            &camera,
+            &surface_config,
+            &bind_group_layout_cache,
+        )
+        .await;
 
         let particle_state = ParticleState::new(&device, &bind_group_layout_cache);
 
@@ -180,7 +187,6 @@ impl State {
         )
         .await
         .unwrap();
-
 
         Self {
             window: window.clone(),
@@ -229,7 +235,11 @@ impl State {
         self.camera.aspect = self.screen_size.width as f32 / self.screen_size.height as f32;
         self.surface.configure(&self.device, &self.surface_config);
 
-        self.renderer.resize(&self.device, &self.surface_config, &self.bind_group_layout_cache);
+        self.renderer.resize(
+            &self.device,
+            &self.surface_config,
+            &self.bind_group_layout_cache,
+        );
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
@@ -239,7 +249,8 @@ impl State {
     fn update(&mut self, delta_time: f32) {
         self.camera_controller
             .update_camera_state(&mut self.camera, delta_time);
-        self.renderer.update(&self.camera, &self.surface_config, &self.queue);
+        self.renderer
+            .update(&self.camera, &self.surface_config, &self.queue);
     }
 
     fn render(&mut self, dt: f32) -> Result<(), wgpu::SurfaceError> {
@@ -254,6 +265,7 @@ impl State {
             &mut self.particle_state,
             &self.device,
             &self.queue,
+            &self.surface_config,
             &view,
         );
 
