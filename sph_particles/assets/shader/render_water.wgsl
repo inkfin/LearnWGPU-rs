@@ -34,7 +34,7 @@ fn get_zfar() -> f32 {
 
 
 @group(2) @binding(0)
-var depth_texture: texture_depth_2d;
+var depth_texture: texture_2d<f32>;
 
 
 //----------------------------------------------------------------------
@@ -74,7 +74,7 @@ const water_color = vec3<f32>(0.1, 0.2, 1.0);
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
     let pixel_id = vec2<i32>(in.clip_position.xy);
-    let depth = textureLoad(depth_texture, pixel_id, 0);
+    let depth = textureLoad(depth_texture, pixel_id, 0).x;
     if depth == 1.0 { discard; }
 
     // calculate normals
@@ -113,9 +113,9 @@ fn z_to_depth(z: f32) -> f32 {
 }
 
 fn view_pos(coord: vec2<i32>) -> vec3<f32> {
-    let zval = textureLoad(depth_texture, coord, 0); // [0, 1]
+    let zval = textureLoad(depth_texture, coord, 0).x; // [0, 1]
     // wgpu spec: top-left is (0, 0), bottom-right is (vp.width, vp.height)
-    let uv = vec2f(1.0-f32(coord.x) / get_width(), f32(coord.y) / get_height()) * 2.0 - 1.0; // [-1, 1]
+    let uv = vec2f(1.0 - f32(coord.x) / get_width(), f32(coord.y) / get_height()) * 2.0 - 1.0; // [-1, 1]
     let p_pos = vec4f(uv, zval, 1.0);
     let v_pos = camera.mat_proj_inv * p_pos;
     return v_pos.xyz / v_pos.w;
@@ -123,7 +123,7 @@ fn view_pos(coord: vec2<i32>) -> vec3<f32> {
 
 fn compute_normal(tex_coords: vec2<i32>) -> vec3<f32> {
     let pos = view_pos(tex_coords);
-    
+
     var ddx = view_pos(tex_coords + vec2<i32>(1, 0)) - pos;
     let ddx2 = pos - view_pos(tex_coords + vec2<i32>(-1, 0));
     if abs(ddx.z) > abs(ddx2.z) { ddx = ddx2; }

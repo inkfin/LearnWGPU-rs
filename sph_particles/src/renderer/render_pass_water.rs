@@ -158,7 +158,7 @@ impl RenderQuadPass {
                 bind_group_layouts: &[
                     &bind_group_layout_cache.camera_bind_group_layout,
                     &bind_group_layout_cache.render_uniforms_bind_group_layout,
-                    &bind_group_layout_cache.particle_depth_texture_bind_group_layout,
+                    &bind_group_layout_cache.sampled_depth_texture_read_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -241,7 +241,7 @@ impl RenderQuadPass {
 
     pub fn render(
         &self,
-        particle_depth_texture_bind_group: &wgpu::BindGroup,
+        depth_texture_bind_group: &wgpu::BindGroup,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
@@ -277,7 +277,7 @@ impl RenderQuadPass {
 
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
-            render_pass.set_bind_group(2, &particle_depth_texture_bind_group, &[]);
+            render_pass.set_bind_group(2, &depth_texture_bind_group, &[]);
 
             render_pass.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
         }

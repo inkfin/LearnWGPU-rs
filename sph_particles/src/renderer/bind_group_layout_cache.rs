@@ -1,6 +1,8 @@
 pub struct BindGroupLayoutCache {
     pub texture_bind_group_layout: wgpu::BindGroupLayout,
     pub particle_depth_texture_bind_group_layout: wgpu::BindGroupLayout,
+    pub sampled_depth_texture_read_bind_group_layout: wgpu::BindGroupLayout,
+    pub sampled_depth_texture_write_bind_group_layout: wgpu::BindGroupLayout,
     pub particle_thickness_texture_bind_group_layout: wgpu::BindGroupLayout,
     pub camera_bind_group_layout: wgpu::BindGroupLayout,
     pub render_uniforms_bind_group_layout: wgpu::BindGroupLayout,
@@ -41,7 +43,7 @@ impl BindGroupLayoutCache {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
@@ -50,6 +52,36 @@ impl BindGroupLayoutCache {
                     count: None,
                 }],
                 label: Some("particle_depth_texture_bind_group_layout"),
+            });
+
+        let sampled_depth_texture_read_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    },
+                    count: None,
+                }],
+                label: Some("sampled_depth_texture_read_bind_group_layout"),
+            });
+
+        let sampled_depth_texture_write_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: wgpu::StorageTextureAccess::WriteOnly,
+                        format: wgpu::TextureFormat::R32Float,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                    },
+                    count: None,
+                }],
+                label: Some("sampled_depth_texture_write_bind_group_layout"),
             });
 
         let particle_thickness_texture_bind_group_layout =
@@ -168,6 +200,8 @@ impl BindGroupLayoutCache {
         Self {
             texture_bind_group_layout,
             particle_depth_texture_bind_group_layout,
+            sampled_depth_texture_read_bind_group_layout,
+            sampled_depth_texture_write_bind_group_layout,
             particle_thickness_texture_bind_group_layout,
             camera_bind_group_layout,
             render_uniforms_bind_group_layout,
