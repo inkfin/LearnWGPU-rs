@@ -1,6 +1,7 @@
 pub(crate) mod bind_group_layout_cache;
 pub(crate) mod compute_pass_copy_depth;
 pub(crate) mod compute_pass_depth_filter;
+pub(crate) mod compute_pass_depth_filter_basic;
 pub(crate) mod compute_pass_particle;
 pub(crate) mod render_pass_depth;
 pub(crate) mod render_pass_water;
@@ -11,6 +12,7 @@ pub(crate) use bind_group_layout_cache::BindGroupLayoutCache;
 
 use compute_pass_copy_depth::CopyDepthPass;
 use compute_pass_depth_filter::ComputeDepthFilterPass;
+use compute_pass_depth_filter_basic::ComputeDepthFilterBasicPass;
 use compute_pass_particle::ComputeParticlePass;
 use render_pass_depth::RenderDepthPass;
 use render_pass_water::RenderQuadPass;
@@ -40,6 +42,7 @@ pub struct Renderer {
     pub compute_particle_pass: ComputeParticlePass,
     pub copy_depth_pass: CopyDepthPass,
     pub compute_depth_filter_pass: ComputeDepthFilterPass,
+    pub compute_depth_filter_basic_pass: ComputeDepthFilterBasicPass,
 }
 
 impl Renderer {
@@ -65,12 +68,16 @@ impl Renderer {
             ComputeDepthFilterPass::new(device, queue, surface_config, bind_group_layout_cache)
                 .await;
 
+        let compute_depth_filter_basic_pass =
+            ComputeDepthFilterBasicPass::new(device, bind_group_layout_cache).await;
+
         Self {
             render_depth_pass,
             render_quad_pass,
             compute_particle_pass,
             copy_depth_pass,
             compute_depth_filter_pass,
+            compute_depth_filter_basic_pass,
         }
     }
 
@@ -111,19 +118,28 @@ impl Renderer {
                 .sampled_depth_texture_write_bind_group_1,
         );
 
-        self.compute_depth_filter_pass.filter(
+        self.compute_depth_filter_basic_pass.filter(
             surface_config,
-            [depth_read_bg_0, depth_read_bg_1],
-            [depth_write_bg_0, depth_write_bg_1],
+            &self.render_depth_pass.camera_bind_group,
+            depth_read_bg_0,
+            depth_write_bg_1,
             device,
             queue,
         );
+
+        // self.compute_depth_filter_pass.filter(
+        //     surface_config,
+        //     [depth_read_bg_0, depth_read_bg_1],
+        //     [depth_write_bg_0, depth_write_bg_1],
+        //     device,
+        //     queue,
+        // );
 
         // self.compute_state.compute_filter
 
         // self.render_state.render_final
         self.render_quad_pass
-            .render(depth_read_bg_0, device, queue, view);
+            .render(depth_read_bg_1, device, queue, view);
     }
 
     pub fn resize(
