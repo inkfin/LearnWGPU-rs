@@ -1,12 +1,101 @@
 [
   {
-    "objectID": "about.html",
-    "href": "about.html",
-    "title": "About",
-    "section": "",
-    "text": "Hi, this is a site where I store my tutorials and slides; you can try out the demos in demo sections and see the source code in the git repository.",
+    "objectID": "slides/sph_simulation.html#fluid-simulation",
+    "href": "slides/sph_simulation.html#fluid-simulation",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Fluid Simulation",
+    "text": "Fluid Simulation\nDifferent Types of SPH\n\nWCSPH (weakly compressed sph) ✅\nPCISPH (predictive-corrective incompressible sph)\nIISPH (implicit incompressible sph)\nDFSPH (divergence-free sph)\n\nIncompressible Navier-Stokes equation\n\\[\n\\begin{align}\n\\rho \\frac{Dv}{Dt} &= \\rho g - \\nabla p + \\mu \\nabla^2 v \\\\\n\\nabla \\cdot v &= 0\n\\end{align}\n\\]\nWhich basically means this:\n\\[\nma = f_{ext} + f_{pres} + f_{visc}\n\\]\nTurns into this:\n\\[\na = \\frac{f_{ext} + f_{pres} + f_{visc}}{V_j \\times \\rho_j}\n\\]\n\nHow to get the density?",
     "crumbs": [
-      "About"
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#kernel-functions",
+    "href": "slides/sph_simulation.html#kernel-functions",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Kernel Functions",
+    "text": "Kernel Functions\n\n\nimagine a probe…\n\n\nscreenshots taken from: taichi 10_fluid_lagrangian",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#compute-the-acceleration-for-particle",
+    "href": "slides/sph_simulation.html#compute-the-acceleration-for-particle",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Compute the acceleration for particle",
+    "text": "Compute the acceleration for particle\n\nfor \\(i\\) in particles:\n\nEvaluate density\n\n\n\\(\\rho_i = \\sum_j \\frac{m_j}{\\rho_j} \\rho_j W(r_i - r_j, h) = \\sum_j m_j W_{ij}\\)\n\n\nEvaluate non-pressure force: gravity, viscosity\n\n\n\\(g\\)\n\\(v\\nabla^2 v_i = v\\sum_jm_j\\frac{v_j-v_i}{\\rho_j}\\nabla^2 W_{ij}\\)\n\n\nEvaluate pressure gradient\n\n\n\\(-\\frac{1}{\\rho_i}\\nabla p_i = -\\sum_j m_j(\\frac{p_j}{\\rho^2_j} + \\frac{p_i}{\\rho^2_i})\\nabla W_{ij}\\)",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#boundary-problems",
+    "href": "slides/sph_simulation.html#boundary-problems",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "boundary problems",
+    "text": "boundary problems\n\nfree surface\n\ndensity –&gt; 0\nclamp the minimum density\n\nsolid boundary\n\ndensity –&gt; 0\nparticles gather at the boundary\nCreate imagine particles outside boundaries",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#depth-texture",
+    "href": "slides/sph_simulation.html#depth-texture",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Depth Texture",
+    "text": "Depth Texture\nSmooth surface by filtering depth texture\nRender depth texture and copy it to textures for read & write",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#filter",
+    "href": "slides/sph_simulation.html#filter",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Filter",
+    "text": "Filter\nUse Bilateral filter since it won’t smooth depth.",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#pipeline",
+    "href": "slides/sph_simulation.html#pipeline",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Pipeline",
+    "text": "Pipeline\n  src\n  │   lib.rs\n  │   particle_system.rs\n  │   renderer.rs\n  |   ...\n  │\n  ├───particle_system\n  │       gpu_pass.rs\n  │       grid.rs\n  │       particles.rs\n  │       utils.rs\n  │\n  └───renderer\n          bind_group_layout_cache.rs\n          compute_pass_copy_depth.rs\n          compute_pass_depth_filter.rs\n          compute_pass_depth_filter_basic.rs\n          compute_pass_particle.rs\n          render_pass_depth.rs\n          render_pass_water.rs\nEach pass struct contains lots of objects… (buffer, bind_group_layout, bind_group, pipeline_layout, pipeline, encoder, pass)\nSharing objects requires passing references everywhere… sometimes through the whole call stack…",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#bitonic-sort-performance-test",
+    "href": "slides/sph_simulation.html#bitonic-sort-performance-test",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Bitonic Sort Performance Test",
+    "text": "Bitonic Sort Performance Test\nImplement parallel bitonic sort algorithms with Rust and Wgpu.\n\nsize = \\(2^{8}\\)\n\nCPU faster than GPU\n\n\n[2024-04-12T09:56:02Z INFO  bitonic_sort] Bitonic sort successful!\n[2024-04-12T09:56:02Z INFO  bitonic_sort] Initialization takes: 0.4548751s\n[2024-04-12T09:56:02Z INFO  bitonic_sort] Wgpu computation takes: 0.0055504s\n[2024-04-12T09:56:02Z INFO  bitonic_sort] Data transfer takes: 0.0001467s\n[2024-04-12T09:56:02Z INFO  bitonic_sort] CPU sorting takes: 0.000011s\n\nsize = \\(2^{18}\\)\n\nSimilar performance\n\n\n[2024-04-12T09:57:18Z INFO  bitonic_sort] Bitonic sort successful!\n[2024-04-12T09:57:18Z INFO  bitonic_sort] Initialization takes: 0.4637676s\n[2024-04-12T09:57:18Z INFO  bitonic_sort] Wgpu computation takes: 0.0214897s\n[2024-04-12T09:57:18Z INFO  bitonic_sort] Data transfer takes: 0.0005794s\n[2024-04-12T09:57:18Z INFO  bitonic_sort] CPU sorting takes: 0.0217035s\n\nsize = \\(2^{17}\\) (release mode)\n\nSimilar performance\n\n\n[2024-04-12T21:33:44Z INFO  bitonic_sort] Bitonic sort successful!\n[2024-04-12T21:33:44Z INFO  bitonic_sort] Initialization takes: 0.3913661s\n[2024-04-12T21:33:44Z INFO  bitonic_sort] Wgpu computation takes: 0.0090767s\n[2024-04-12T21:33:44Z INFO  bitonic_sort] Data transfer takes: 0.000544s\n[2024-04-12T21:33:44Z INFO  bitonic_sort] CPU sorting takes: 0.0098242s\n\nsize = \\(2^{25}\\)\n\nGPU faster than CPU\n\n\n[2024-04-12T09:53:07Z INFO  bitonic_sort] Bitonic sort successful!\n[2024-04-12T09:53:07Z INFO  bitonic_sort] Initialization takes: 0.9346608s\n[2024-04-12T09:53:07Z INFO  bitonic_sort] Wgpu computation takes: 0.1369619s\n[2024-04-12T09:53:07Z INFO  bitonic_sort] Data transfer takes: 0.9909169s\n[2024-04-12T09:53:07Z INFO  bitonic_sort] CPU sorting takes: 4.1491945s",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
+    ]
+  },
+  {
+    "objectID": "slides/sph_simulation.html#credit",
+    "href": "slides/sph_simulation.html#credit",
+    "title": "Smooth Particle Hydrodynamics with webgpu",
+    "section": "Credit",
+    "text": "Credit\nSpecial thanks to:\n\nProfessor Tim McGraw, for teaching the lesson on Compute Shader and providing a helpful demo for reference.\nTaichiCourse01 for their lessons of Fluid Simulation. ppt\ntaichi_sph for providing guidance in the development process.\nNae Zhu for his introduction of a Screen Space Fluid Rendering method.",
+    "crumbs": [
+      "Slides",
+      "Smooth Particle Hydrodynamics with webgpu"
     ]
   },
   {
@@ -50,6 +139,16 @@
     "title": "wgpu with rust",
     "section": "",
     "text": "10min"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "Hi, this is a site where I store my tutorials and slides; you can try out the demos in demo sections and see the source code in the git repository.",
+    "crumbs": [
+      "About"
+    ]
   },
   {
     "objectID": "index.html",
@@ -132,7 +231,7 @@
     "href": "slides/introduction.html#hello-world",
     "title": "WGPU with Rust in 50min",
     "section": "Hello world!",
-    "text": "Hello world!\nFirst, create a rust project using cargo\ncargo new hello-world\nUse your favorite editor and edit the src/main.rs:\nfn main() {\n    let name = \"ink\";\n    println!(\"Hello, world! from {:?}\", name)\n}\nTo run the code:\ncargo run\nThe result should be:\n\n\nHello, world! from \"ink\"",
+    "text": "Hello world!\nFirst, create a rust project using cargo\ncargo new hello-world\nUse your favorite editor and edit the src/main.rs:\nfn main() {\n    let name = \"ink\";\n    println!(\"Hello, world! from {:?}\", name)\n}\nTo run the code:\ncargo run\nThe result should be:\nlet name = \"ink\";\nprintln!(\"Hello, world! from {:?}\", name);",
     "crumbs": [
       "Slides",
       "WGPU with Rust in 50min"

@@ -18,6 +18,7 @@ website:
       - section: "Slides"
         contents:
           - slides/introduction.qmd
+          - slides/sph_simulation.qmd
       - section: "Demos"
         contents:
           - demos/example_cube/index.qmd

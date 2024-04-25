@@ -1,0 +1,189 @@
+---
+title: "Smooth Particle Hydrodynamics with webgpu"
+author: "Ink Zhang"
+format:
+  revealjs:
+    theme: beige
+    mermaid-format: svg
+    code-block-height: 650px
+---
+
+# The Theory
+
+## Fluid Simulation {.scrollable .smaller}
+
+### Different Types of SPH
+
+- WCSPH (weakly compressed sph) ✅
+- PCISPH (predictive-corrective incompressible sph)
+- IISPH (implicit incompressible sph)
+- DFSPH (divergence-free sph)
+
+### Incompressible Navier-Stokes equation
+
+$$
+\begin{align}
+\rho \frac{Dv}{Dt} &= \rho g - \nabla p + \mu \nabla^2 v \\
+\nabla \cdot v &= 0
+\end{align}
+$$
+
+Which basically means this:
+
+$$
+ma = f_{ext} + f_{pres} + f_{visc}
+$$
+
+Turns into this:
+
+$$
+a = \frac{f_{ext} + f_{pres} + f_{visc}}{V_j \times \rho_j}
+$$
+
+- How to get the density?
+
+## Kernel Functions
+
+![](assets/smoother-kernel-function.png){fig-align="center"}
+
+- imagine a probe...
+
+::: asside
+screenshots taken from: [taichi 10_fluid_lagrangian](https://github.com/taichiCourse01/taichiCourse01/blob/main/material/10_fluid_lagrangian.pdf)
+:::
+
+## Compute the acceleration for particle {.smaller}
+
+- for $i$ in particles:
+  1. Evaluate density
+    - $\rho_i = \sum_j \frac{m_j}{\rho_j} \rho_j W(r_i - r_j, h) = \sum_j m_j W_{ij}$
+  2. Evaluate non-pressure force: gravity, viscosity
+    - $g$
+    - $v\nabla^2 v_i = v\sum_jm_j\frac{v_j-v_i}{\rho_j}\nabla^2 W_{ij}$
+  3. Evaluate pressure gradient
+    - $-\frac{1}{\rho_i}\nabla p_i = -\sum_j m_j(\frac{p_j}{\rho^2_j} + \frac{p_i}{\rho^2_i})\nabla W_{ij}$
+
+## boundary problems
+- free surface
+  - density --> 0
+  - clamp the minimum density
+- solid boundary
+  - density --> 0
+  - particles gather at the boundary
+  - Create imagine particles outside boundaries
+
+
+# Rendering
+
+
+## Depth Texture
+
+Smooth surface by filtering depth texture
+
+Render depth texture and copy it to textures for read & write
+
+![](assets/sph-depth.png){fig-align="center"}
+
+
+## Filter
+
+Use [Bilateral filter](https://en.wikipedia.org/wiki/Bilateral_filter) since it won't smooth depth.
+
+![](assets/sph-normal.png){fig-align="center"}
+
+
+## Pipeline {.smaller}
+
+```
+  src
+  │   lib.rs
+  │   particle_system.rs
+  │   renderer.rs
+  |   ...
+  │
+  ├───particle_system
+  │       gpu_pass.rs
+  │       grid.rs
+  │       particles.rs
+  │       utils.rs
+  │
+  └───renderer
+          bind_group_layout_cache.rs
+          compute_pass_copy_depth.rs
+          compute_pass_depth_filter.rs
+          compute_pass_depth_filter_basic.rs
+          compute_pass_particle.rs
+          render_pass_depth.rs
+          render_pass_water.rs
+```
+
+Each pass struct contains lots of objects... (buffer, bind_group_layout, bind_group, pipeline_layout, pipeline, encoder, pass)
+
+Sharing objects requires passing references everywhere... sometimes through the whole call stack...
+
+
+# Other stuff...
+
+
+## Bitonic Sort Performance Test {.scrollable .smaller}
+
+Implement parallel bitonic sort algorithms with Rust and Wgpu.
+
+- size = $2^{8}$
+  - CPU faster than GPU
+
+```log
+[2024-04-12T09:56:02Z INFO  bitonic_sort] Bitonic sort successful!
+[2024-04-12T09:56:02Z INFO  bitonic_sort] Initialization takes: 0.4548751s
+[2024-04-12T09:56:02Z INFO  bitonic_sort] Wgpu computation takes: 0.0055504s
+[2024-04-12T09:56:02Z INFO  bitonic_sort] Data transfer takes: 0.0001467s
+[2024-04-12T09:56:02Z INFO  bitonic_sort] CPU sorting takes: 0.000011s
+```
+
+- size = $2^{18}$
+  - Similar performance
+
+```log
+[2024-04-12T09:57:18Z INFO  bitonic_sort] Bitonic sort successful!
+[2024-04-12T09:57:18Z INFO  bitonic_sort] Initialization takes: 0.4637676s
+[2024-04-12T09:57:18Z INFO  bitonic_sort] Wgpu computation takes: 0.0214897s
+[2024-04-12T09:57:18Z INFO  bitonic_sort] Data transfer takes: 0.0005794s
+[2024-04-12T09:57:18Z INFO  bitonic_sort] CPU sorting takes: 0.0217035s
+```
+
+- size = $2^{17}$ (release mode)
+  - Similar performance
+
+```log
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Bitonic sort successful!
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Initialization takes: 0.3913661s
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Wgpu computation takes: 0.0090767s
+[2024-04-12T21:33:44Z INFO  bitonic_sort] Data transfer takes: 0.000544s
+[2024-04-12T21:33:44Z INFO  bitonic_sort] CPU sorting takes: 0.0098242s
+```
+
+- size = $2^{25}$
+  - GPU faster than CPU
+
+```log
+[2024-04-12T09:53:07Z INFO  bitonic_sort] Bitonic sort successful!
+[2024-04-12T09:53:07Z INFO  bitonic_sort] Initialization takes: 0.9346608s
+[2024-04-12T09:53:07Z INFO  bitonic_sort] Wgpu computation takes: 0.1369619s
+[2024-04-12T09:53:07Z INFO  bitonic_sort] Data transfer takes: 0.9909169s
+[2024-04-12T09:53:07Z INFO  bitonic_sort] CPU sorting takes: 4.1491945s
+```
+
+
+## Credit
+
+Special thanks to:
+
+- Professor Tim McGraw, for teaching the lesson on Compute Shader and providing a helpful demo for reference.
+- [TaichiCourse01](https://github.com/taichiCourse01) for their lessons of Fluid Simulation. [ppt](https://github.com/taichiCourse01/taichiCourse01/blob/main/material/10_fluid_lagrangian.pdf)
+- [taichi_sph](https://github.com/taichiCourse01/taichi_sph) for providing guidance in the development process.
+- [Nae Zhu](https://zhuanlan.zhihu.com/p/38280537) for his introduction of a Screen Space Fluid Rendering method.
+
+
+# Thank You!
+
+
